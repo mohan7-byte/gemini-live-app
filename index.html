@@ -502,22 +502,20 @@
   <canvas id="offscreenCanvas" class="hidden" width="320" height="240"></canvas>
 
   <script>
-    const JARVIS_DEFAULT_PROMPT = `You are Voice (Jarvis), an autonomous Android assistant with physical device control.
+    const JARVIS_DEFAULT_PROMPT = `You are Voice (Jarvis), an ultra-fast autonomous Android agent with direct device control.
 
-AUTONOMOUS EXECUTION PROTOCOL:
-1. When asked to achieve a goal (e.g. type in a note, search a video, download a PDF, send a message):
-   - Perform the chain of actions autonomously without stopping to ask for routine confirmation.
-   - When asked to type in Notes or any app: open the app first (if not open), wait 1 second using wait_seconds(1), then call type_text.
-   - Use direct hyper-intents first for speed: search_youtube, search_web, open_whatsapp, or search_contacts.
-   - Verify changes using read_screen_text or capture_screen.
-2. PHYSICAL TOUCH & TYPING:
-   - Use type_text to insert text into any active app or note.
-   - Use tap_element to click buttons or items by label.
-   - Use tap_coordinates for unlabelled icons or canvas elements.
-   - Use scroll('down') or swipe when content is off-screen.
-3. CONVERSATIONAL CADENCE:
-   - Execute chained tool steps silently until the mission is finished.
-   - Speak a concise 1-sentence confirmation once complete.`;
+AUTONOMOUS PROTOCOL:
+1. SPATIAL ACCURACY:
+   - Call read_screen_text first whenever you need to interact with an app. It returns an "INTERACTIVE ELEMENTS" catalog with exact (0-1000) coordinates!
+   - When calling tap_coordinates(x, y), always provide coordinates in normalized 0-1000 scale (e.g., x=500, y=500 is the center of the screen).
+2. TYPING & NOTES:
+   - For quick notes, call create_note(text) for instant zero-failure composition.
+   - For writing into open apps, text boxes, or chats, call type_text(text). It automatically pastes at the blinking cursor.
+3. HYPER-SPEED INTENTS:
+   - Use search_youtube, search_web, open_whatsapp, search_contacts, or open_application directly instead of clicking around home screens.
+4. CADENCE:
+   - Execute actions silently in sequence until the mission is finished.
+   - Speak a single, confident 1-sentence confirmation when finished.`;
 
     let ws = null;
     let audioCtx = null;
@@ -637,6 +635,7 @@ AUTONOMOUS EXECUTION PROTOCOL:
           return `Typing: "${preview}"`;
         }
         case "tap_element": return `Tapping "${args.label || 'button'}"...`;
+        case "create_note": return `Creating note...`;  
         case "tap_coordinates": return `Tapping (${args.x}, ${args.y})...`;
         case "scroll": return `Scrolling ${args.direction || 'down'}...`;
         case "swipe": return `Swiping screen...`;
@@ -703,15 +702,27 @@ AUTONOMOUS EXECUTION PROTOCOL:
             }
           },
           {
+            {
             name: "tap_coordinates",
-            description: "Physically tap exact screen pixel coordinates (X, Y)",
+            description: "Physically tap screen coordinates. Use normalized 0 to 1000 scale (where x=500, y=500 is the exact center of screen).",
             parameters: {
               type: "OBJECT",
               properties: {
-                x: { type: "INTEGER", description: "X pixel" },
-                y: { type: "INTEGER", description: "Y pixel" }
+                x: { type: "INTEGER", description: "X coordinate (0 to 1000)" },
+                y: { type: "INTEGER", description: "Y coordinate (0 to 1000)" }
               },
               required: ["x", "y"]
+            }
+          },
+          {
+            name: "create_note",
+            description: "Instant zero-failure note creation. Directly opens a new note composer with pre-filled text body via Android intent.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                text: { type: "STRING", description: "The note content" }
+              },
+              required: ["text"]
             }
           },
           {
@@ -974,6 +985,8 @@ AUTONOMOUS EXECUTION PROTOCOL:
           result = "Android native bridge not ready.";
         } else if (name === "type_text") {
           result = window.AndroidBridge.typeText(args.text || "");
+        } else if (name === "create_note") {
+          result = window.AndroidBridge.createNote(args.text || "");
         } else if (name === "tap_element") {
           result = window.AndroidBridge.tapElement(args.label || "");
         } else if (name === "tap_coordinates") {

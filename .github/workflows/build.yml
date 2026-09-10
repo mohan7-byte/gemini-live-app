@@ -98,8 +98,8 @@ jobs:
                   applicationId "com.gemini.live"
                   minSdk 24
                   targetSdk 34
-                  versionCode 3
-                  versionName "1.2"
+                  versionCode 4
+                  versionName "1.3"
               }
               buildTypes {
                   release {
@@ -109,7 +109,7 @@ jobs:
           }
           EOF
 
-          # AndroidManifest.xml: Translucent theme, Lockscreen show, and ASSIST filter
+          # AndroidManifest.xml: Translucent Theme, Lock Screen Waking, SingleInstance
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -117,6 +117,7 @@ jobs:
               <uses-permission android:name="android.permission.RECORD_AUDIO" />
               <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
               <uses-permission android:name="android.permission.CAMERA" />
+              <uses-permission android:name="android.permission.WAKE_LOCK" />
               <uses-feature android:name="android.hardware.camera" android:required="false" />
 
               <application
@@ -130,13 +131,12 @@ jobs:
                       android:exported="true"
                       android:showWhenLocked="true"
                       android:turnScreenOn="true"
+                      android:launchMode="singleInstance"
                       android:configChanges="orientation|screenSize|keyboardHidden">
-                      <!-- Standard App Launcher -->
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
-                      <!-- Android Digital Assistant Intent Filter -->
                       <intent-filter>
                           <action android:name="android.intent.action.ASSIST" />
                           <category android:name="android.intent.category.DEFAULT" />
@@ -146,12 +146,13 @@ jobs:
           </manifest>
           EOF
 
-          # MainActivity.java: Hardware accelerated translucent window + Camera & Mic auto-grant
+          # Native MainActivity.java: Seamless Backgrounding & Floating Lockscreen Execution
           cat << 'EOF' > app/src/main/java/com/gemini/live/MainActivity.java
           package com.gemini.live;
 
           import android.Manifest;
           import android.app.Activity;
+          import android.content.Intent;
           import android.content.pm.PackageManager;
           import android.graphics.Color;
           import android.graphics.drawable.ColorDrawable;
@@ -173,20 +174,20 @@ jobs:
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
 
-                  // Show over lockscreen
-                  getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
-                          | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-                          | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
+                  // Allow Activity to render over Samsung/Android Lock Screen
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
                       setShowWhenLocked(true);
                       setTurnScreenOn(true);
+                  } else {
+                      getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                              | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                              | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                   }
 
-                  // Transparent activity window
+                  // Transparent window surface
                   getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
 
-                  // Request Mic & Camera
+                  // Request Mic and Camera
                   String[] perms = { Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA };
                   for (String p : perms) {
                       if (checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) {
@@ -208,10 +209,14 @@ jobs:
                   s.setAllowFileAccess(true);
                   s.setAllowContentAccess(true);
 
-                  // Bridge to close floating overlay from JS
+                  // Native bridge
                   webView.addJavascriptInterface(new Object() {
                       @JavascriptInterface
-                      public void dismiss() {
+                      public void minimize() {
+                          runOnUiThread(() -> moveTaskToBack(true));
+                      }
+                      @JavascriptInterface
+                      public void closeApp() {
                           runOnUiThread(() -> finish());
                       }
                   }, "AndroidBridge");
@@ -227,9 +232,16 @@ jobs:
               }
 
               @Override
+              protected void onNewIntent(Intent intent) {
+                  super.onNewIntent(intent);
+                  setIntent(intent);
+              }
+
+              // Back button minimizes to background without disconnecting call
+              @Override
               public boolean onKeyDown(int keyCode, KeyEvent event) {
                   if (keyCode == KeyEvent.KEYCODE_BACK) {
-                      finish();
+                      moveTaskToBack(true);
                       return true;
                   }
                   return super.onKeyDown(keyCode, event);
@@ -256,5 +268,5 @@ jobs:
           gh release delete v1.0 --yes || true
           git tag -d v1.0 || true
           gh release create v1.0 app/build/outputs/apk/debug/app-debug.apk \
-            --title "Voice Assistant APK" \
-            --notes "Voice Assistant v1.2 with Floating Translucent Shell, Auto-Connect, and Camera Vision" || true
+            --title "Voice APK v1.3" \
+            --notes "Voice Assistant v1.3 - Floating Pill, Background Calling, Camera Vision Fixed" || true

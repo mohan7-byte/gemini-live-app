@@ -93,8 +93,8 @@ jobs:
                   applicationId "com.gemini.live"
                   minSdk 24
                   targetSdk 34
-                  versionCode 6
-                  versionName "1.5"
+                  versionCode 7
+                  versionName "1.6"
               }
               buildTypes {
                   release {
@@ -104,7 +104,6 @@ jobs:
           }
           EOF
 
-          # Manifest: Translucent, Lockscreen show, and Assistant Filter
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -140,12 +139,13 @@ jobs:
           </manifest>
           EOF
 
-          # Lightweight MainActivity: Transparent, hardware-accelerated, and minimizes cleanly
           cat << 'EOF' > app/src/main/java/com/gemini/live/MainActivity.java
           package com.gemini.live;
 
           import android.Manifest;
           import android.app.Activity;
+          import android.app.KeyguardManager;
+          import android.content.Context;
           import android.content.Intent;
           import android.content.pm.PackageManager;
           import android.graphics.Color;
@@ -168,14 +168,18 @@ jobs:
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
 
+                  // Samsung Lock Screen cold-start handling
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
                       setShowWhenLocked(true);
                       setTurnScreenOn(true);
-                  } else {
-                      getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
-                              | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-                              | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                   }
+                  
+                  getWindow().addFlags(
+                      WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
+                      WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
+                      WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
+                      WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+                  );
 
                   getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
 
@@ -222,6 +226,15 @@ jobs:
               }
 
               @Override
+              protected void onResume() {
+                  super.onResume();
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                      setShowWhenLocked(true);
+                      setTurnScreenOn(true);
+                  }
+              }
+
+              @Override
               protected void onNewIntent(Intent intent) {
                   super.onNewIntent(intent);
                   setIntent(intent);
@@ -257,5 +270,5 @@ jobs:
           gh release delete v1.0 --yes || true
           git tag -d v1.0 || true
           gh release create v1.0 app/build/outputs/apk/debug/app-debug.apk \
-            --title "Voice v1.5" \
-            --notes "Lightweight Floating Voice Assistant v1.5" || true
+            --title "Voice v1.6" \
+            --notes "Voice v1.6 - Fixed Vision frame timing & clean lockscreen initialization" || true

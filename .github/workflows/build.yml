@@ -481,6 +481,7 @@ jobs:
                   startActivity(intent);
               }
 
+              // Auto-Resolving Sniper Tap Engine (Maps 0-1000 Normalized to Physical Screen Pixels)
               public boolean tapCoordinates(int x, int y) {
                   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
 
@@ -489,8 +490,20 @@ jobs:
                   if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
                   else dm = getResources().getDisplayMetrics();
 
-                  int targetX = Math.max(10, Math.min(x, dm.widthPixels - 10));
-                  int targetY = Math.max(10, Math.min(y, dm.heightPixels - 10));
+                  int targetX;
+                  int targetY;
+
+                  // Auto-detect: if coordinate is within 0-1000 range, normalize it to physical resolution
+                  if (x <= 1000 && y <= 1000 && dm.widthPixels > 1000) {
+                      targetX = Math.round((x / 1000.0f) * dm.widthPixels);
+                      targetY = Math.round((y / 1000.0f) * dm.heightPixels);
+                  } else {
+                      targetX = x;
+                      targetY = y;
+                  }
+
+                  targetX = Math.max(15, Math.min(targetX, dm.widthPixels - 15));
+                  targetY = Math.max(15, Math.min(targetY, dm.heightPixels - 15));
 
                   Path clickPath = new Path();
                   clickPath.moveTo(targetX, targetY);
@@ -500,11 +513,14 @@ jobs:
                   GestureDescription.Builder builder = new GestureDescription.Builder();
                   builder.addStroke(stroke);
 
+                  final int finalX = targetX;
+                  final int finalY = targetY;
+
                   return dispatchGesture(builder.build(), new GestureResultCallback() {
                       @Override
                       public void onCompleted(GestureDescription gestureDescription) {
                           super.onCompleted(gestureDescription);
-                          showToast("✓ Tapped (" + targetX + ", " + targetY + ")");
+                          showToast("✓ Tapped at (" + finalX + ", " + finalY + ")");
                       }
                   }, null);
               }
@@ -535,14 +551,54 @@ jobs:
                   }
               }
 
-              // तुरंत 0ms में बिना किसी देरी के पूरा स्क्रीन टेक्स्ट पढ़ेगा
+              // Returns both the screen text AND a catalog of clickable elements with 0-1000 coordinates
               public String readScreenText() {
                   AccessibilityNodeInfo root = getRootInActiveWindow();
                   if (root == null) return "No active window detected.";
-                  StringBuilder sb = new StringBuilder();
-                  extractTextRecursive(root, sb, 0);
-                  String result = sb.toString().trim();
-                  return result.isEmpty() ? "Screen is empty or text unreadable." : result;
+
+                  WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+                  DisplayMetrics dm = new DisplayMetrics();
+                  if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
+                  else dm = getResources().getDisplayMetrics();
+
+                  StringBuilder catalog = new StringBuilder();
+                  catalog.append("=== INTERACTIVE ELEMENTS (COORDINATES 0-1000) ===\n");
+                  List<String> elements = new ArrayList<>();
+                  extractInteractiveElements(root, elements, dm, 0);
+                  if (elements.isEmpty()) {
+                      catalog.append("No labeled buttons detected.\n");
+                  } else {
+                      for (String el : elements) catalog.append(el).append("\n");
+                  }
+
+                  catalog.append("\n=== SCREEN TEXT CONTENT ===\n");
+                  StringBuilder textSb = new StringBuilder();
+                  extractTextRecursive(root, textSb, 0);
+                  catalog.append(textSb.toString().trim());
+
+                  return catalog.toString();
+              }
+
+              private void extractInteractiveElements(AccessibilityNodeInfo node, List<String> list, DisplayMetrics dm, int depth) {
+                  if (node == null || depth > 25 || list.size() >= 25) return;
+                  if (node.isClickable() || node.isEditable()) {
+                      CharSequence text = node.getText();
+                      CharSequence desc = node.getContentDescription();
+                      String label = text != null ? text.toString().trim() : (desc != null ? desc.toString().trim() : "");
+                      if (!label.isEmpty()) {
+                          Rect r = new Rect();
+                          node.getBoundsInScreen(r);
+                          if (r.width() > 10 && r.height() > 10) {
+                              int normX = Math.round((r.centerX() / (float) dm.widthPixels) * 1000);
+                              int normY = Math.round((r.centerY() / (float) dm.heightPixels) * 1000);
+                              String type = node.isEditable() ? "Input" : "Button";
+                              list.add("[" + type + "] \"" + label + "\" at coordinates (" + normX + ", " + normY + ")");
+                          }
+                      }
+                  }
+                  for (int i = 0; i < node.getChildCount(); i++) {
+                      extractInteractiveElements(node.getChild(i), list, dm, depth + 1);
+                  }
               }
 
               private void extractTextRecursive(AccessibilityNodeInfo node, StringBuilder sb, int depth) {
@@ -601,29 +657,34 @@ jobs:
                   }
               }
 
-              // सटीक कर्सर टाइपिंग: अगर कर्सर पहले से है, तो बिना कोई दूसरा टैप किए सीधे वहीं टाइप करेगा
+              // Universal Multi-Stage Typing Engine: Protects blinking cursor & handles soft keyboards
               public boolean typeText(String text) {
                   AccessibilityNodeInfo root = getRootInActiveWindow();
                   if (root == null) return false;
 
-                  // 1. अगर कर्सर पहले से ब्लिंक कर रहा है तो सीधे वहीं पेस्ट करें
+                  // Stage 1: If cursor is already active, DO NOT TAP. Paste directly at cursor!
                   AccessibilityNodeInfo focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
                   if (focused == null) focused = findFocusedNode(root, 0);
 
                   if (focused != null) {
-                      return pasteIntoNode(focused, text);
+                      return pasteDirectly(focused, text);
                   }
 
-                  // 2. अगर कर्सर नहीं है, तो पहले एडिट बॉक्स पर टैप करके कर्सर लाएगा, फिर पेस्ट करेगा
+                  // Stage 2: If no focus, locate the editable input, tap to activate cursor, then paste
                   AccessibilityNodeInfo editable = findFirstEditable(root, 0);
                   if (editable != null) {
                       Rect rect = new Rect();
                       editable.getBoundsInScreen(rect);
                       if (rect.width() > 0 && rect.height() > 0) {
                           tapCoordinates(rect.centerX(), rect.centerY());
-                          SystemClock.sleep(150);
+                          SystemClock.sleep(200);
                       }
-                      return pasteIntoNode(editable, text);
+                      root = getRootInActiveWindow();
+                      if (root != null) {
+                          AccessibilityNodeInfo nowFocused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+                          if (nowFocused != null) return pasteDirectly(nowFocused, text);
+                      }
+                      return pasteDirectly(editable, text);
                   }
                   return false;
               }
@@ -638,23 +699,24 @@ jobs:
                   return null;
               }
 
-              private boolean pasteIntoNode(AccessibilityNodeInfo node, String text) {
+              private boolean pasteDirectly(AccessibilityNodeInfo node, String text) {
                   try {
                       ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
                       if (cm != null) {
-                          ClipData clip = ClipData.newPlainText("voice_type", text);
+                          ClipData clip = ClipData.newPlainText("jarvis_input", text);
                           cm.setPrimaryClip(clip);
                       }
                   } catch (Exception ignored) {}
 
-                  boolean pasted = node.performAction(AccessibilityNodeInfo.ACTION_PASTE);
-                  if (!pasted) {
+                  boolean ok = node.performAction(AccessibilityNodeInfo.ACTION_PASTE);
+                  if (!ok) {
                       Bundle args = new Bundle();
                       args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text);
-                      pasted = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+                      ok = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
                   }
-                  if (pasted) showToast("✓ Typed text");
-                  return pasted;
+
+                  if (ok) showToast("✓ Inserted: " + (text.length() > 15 ? text.substring(0, 15) + "..." : text));
+                  return ok;
               }
 
               private AccessibilityNodeInfo findFirstEditable(AccessibilityNodeInfo node, int depth) {
@@ -759,6 +821,20 @@ jobs:
                   s.setAllowContentAccess(true);
 
                   webView.addJavascriptInterface(new Object() {
+                      @JavascriptInterface
+                      public String createNote(String text) {
+                          try {
+                              Intent intent = new Intent(Intent.ACTION_SEND);
+                              intent.setType("text/plain");
+                              intent.putExtra(Intent.EXTRA_TEXT, text);
+                              intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                              startActivity(Intent.createChooser(intent, "Note"));
+                              return "Created note with text.";
+                          } catch (Exception e) {
+                              return "Failed to create note: " + e.getMessage();
+                          }
+                      }
+                      
                       @JavascriptInterface
                       public void minimize() { runOnUiThread(() -> moveTaskToBack(true)); }
 

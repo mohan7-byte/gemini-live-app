@@ -22,14 +22,45 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Accept Android SDK Licenses
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
       - name: Scaffold Native Android App
         run: |
           mkdir -p app/src/main/java/com/gemini/live
           mkdir -p app/src/main/assets
-          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/mipmap-xxxhdpi
+          mkdir -p app/src/main/res/mipmap-xxhdpi
+          mkdir -p app/src/main/res/mipmap-xhdpi
+          mkdir -p app/src/main/res/mipmap-hdpi
+          mkdir -p app/src/main/res/mipmap-mdpi
 
           # Copy index.html into Android Assets
           cp index.html app/src/main/assets/index.html
+
+          # Fallback placeholder icon in case icon.png is not uploaded yet
+          echo "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAATUlEQVR42u3PMQEAAAgEIPuX1hgc/LDBV9JJ6rWTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwBv0hQABH1mYugAAAABJRU5ErkJggg==" | base64 -d > app/src/main/res/mipmap-hdpi/ic_launcher.png
+          cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-mdpi/ic_launcher.png
+          cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+
+          # Overwrite with your uploaded custom icon if available
+          if [ -f icon.png ]; then
+            cp icon.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+            cp icon.png app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+            cp icon.png app/src/main/res/mipmap-xhdpi/ic_launcher.png
+            cp icon.png app/src/main/res/mipmap-hdpi/ic_launcher.png
+            cp icon.png app/src/main/res/mipmap-mdpi/ic_launcher.png
+          fi
+
+          # Fix AndroidX requirement in gradle.properties
+          cat << 'EOF' > gradle.properties
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          org.gradle.jvmargs=-Xmx2048m
+          EOF
 
           # Root build.gradle
           cat << 'EOF' > build.gradle
@@ -82,7 +113,7 @@ jobs:
           }
           EOF
 
-          # AndroidManifest.xml
+          # AndroidManifest.xml (App display name set to 'Voice')
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -91,7 +122,8 @@ jobs:
               <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
               <application
-                  android:label="Gemini Live"
+                  android:label="Voice"
+                  android:icon="@mipmap/ic_launcher"
                   android:hardwareAccelerated="true"
                   android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
                   <activity
@@ -107,7 +139,7 @@ jobs:
           </manifest>
           EOF
 
-          # Native MainActivity.java
+          # MainActivity.java
           cat << 'EOF' > app/src/main/java/com/gemini/live/MainActivity.java
           package com.gemini.live;
 
@@ -158,6 +190,12 @@ jobs:
       - name: Compile Debug APK
         run: ./gradlew assembleDebug
 
+      - name: Upload APK as Direct Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Voice-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+
       - name: Create Release & Upload APK
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -165,5 +203,5 @@ jobs:
           gh release delete v1.0 --yes || true
           git tag -d v1.0 || true
           gh release create v1.0 app/build/outputs/apk/debug/app-debug.apk \
-            --title "Gemini Live APK" \
-            --notes "Direct installable APK for Android"
+            --title "Voice APK" \
+            --notes "Voice App v1.0" || true

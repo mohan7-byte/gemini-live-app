@@ -6,11 +6,14 @@
   <title>Voice</title>
   <style>
     :root {
-      --card-bg: rgba(18, 20, 32, 0.92);
-      --card-border: rgba(255, 255, 255, 0.12);
+      --pill-bg: rgba(14, 16, 26, 0.94);
+      --pill-border: rgba(255, 255, 255, 0.14);
+      --card-bg: rgba(18, 20, 32, 0.96);
       --text: #f8fafc;
       --text-dim: #94a3b8;
       --danger: #ef4444;
+      --accent-purple: #c084fc;
+      --accent-amber: #fbbf24;
     }
 
     * {
@@ -22,443 +25,354 @@
       user-select: none;
     }
 
-    /* Transparent Overlay Shell */
-    body {
-      background-color: rgba(6, 7, 12, 0.72);
-      backdrop-filter: blur(28px);
-      -webkit-backdrop-filter: blur(28px);
-      color: var(--text);
-      min-height: 100dvh;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      align-items: center;
-      padding: env(safe-area-inset-top, 20px) 20px env(safe-area-inset-bottom, 24px) 20px;
+    /* Entire window background is completely transparent */
+    html, body {
+      background: transparent !important;
+      height: 100%;
+      width: 100%;
       overflow: hidden;
-      position: relative;
     }
 
-    /* Ambient Aurora Glow */
-    .ambient-aurora {
-      position: fixed;
-      inset: -40px;
-      pointer-events: none;
+    /* Full-screen touch layer: Tapping empty area minimizes to background */
+    .backdrop-dismiss {
+      position: absolute;
+      inset: 0;
       z-index: 1;
-      opacity: 0.4;
-      filter: blur(60px);
-      transition: opacity 0.8s ease, background 0.9s ease;
-      will-change: background, opacity;
-      animation: auroraBreathe 10s ease-in-out infinite alternate;
+      background: transparent;
     }
 
-    @keyframes auroraBreathe {
-      0% { transform: scale(1); }
-      100% { transform: scale(1.08); }
-    }
-
-    body.state-idle .ambient-aurora {
-      opacity: 0.3;
-      background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.4) 0%, transparent 65%);
-    }
-
-    body.state-listening .ambient-aurora {
-      opacity: 0.85;
-      background: 
-        radial-gradient(circle at 50% 45%, rgba(168, 85, 247, 0.5) 0%, transparent 55%),
-        radial-gradient(circle at 85% 20%, rgba(99, 102, 241, 0.4) 0%, transparent 50%),
-        radial-gradient(circle at 15% 75%, rgba(192, 132, 252, 0.35) 0%, transparent 55%);
-    }
-
-    body.state-speaking .ambient-aurora {
-      opacity: 0.95;
-      background: 
-        radial-gradient(circle at 50% 40%, rgba(251, 191, 36, 0.55) 0%, transparent 55%),
-        radial-gradient(circle at 85% 25%, rgba(244, 63, 94, 0.55) 0%, transparent 50%),
-        radial-gradient(circle at 15% 75%, rgba(217, 70, 239, 0.45) 0%, transparent 55%);
-    }
-
-    /* Header */
-    header {
-      width: 100%;
-      max-width: 480px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      z-index: 10;
-    }
-
-    .status-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 16px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid var(--card-border);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      font-size: 0.8rem;
-      font-weight: 500;
-    }
-
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: #64748b;
-      transition: all 0.3s ease;
-    }
-
-    body.state-listening .status-dot { background: #c084fc; box-shadow: 0 0 12px #c084fc; }
-    body.state-speaking .status-dot { background: #fbbf24; box-shadow: 0 0 14px #fbbf24; }
-
-    .actions-row { display: flex; gap: 8px; }
-
-    .btn-circle {
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid var(--card-border);
-      color: var(--text-dim);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      transition: all 0.2s ease;
-    }
-
-    .btn-circle:active { transform: scale(0.92); background: rgba(255, 255, 255, 0.18); color: var(--text); }
-
-    /* Center Stage */
-    .hub {
-      flex: 1;
-      width: 100%;
-      max-width: 480px;
+    /* Floating Shell anchored at bottom center */
+    .floating-container {
+      position: fixed;
+      bottom: calc(env(safe-area-inset-bottom, 16px) + 20px);
+      left: 0;
+      right: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      position: relative;
-      z-index: 5;
+      justify-content: flex-end;
+      z-index: 10;
+      pointer-events: none; /* Let touches outside pass through to backdrop */
     }
 
-    /* Optional Camera Viewport Preview */
-    .camera-box {
+    /* Mini Camera Vision Box (Floating above capsule when active) */
+    .camera-float {
+      pointer-events: auto;
       width: 130px;
-      height: 130px;
-      border-radius: 24px;
+      height: 98px;
+      border-radius: 18px;
       overflow: hidden;
-      border: 2px solid rgba(255, 255, 255, 0.2);
+      border: 1.5px solid rgba(255, 255, 255, 0.2);
       background: #000;
-      margin-bottom: 18px;
+      margin-bottom: 12px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
       position: relative;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-      transition: all 0.3s ease;
     }
 
-    .camera-box video {
+    .camera-float video {
       width: 100%;
       height: 100%;
       object-fit: cover;
     }
 
-    .btn-flip {
+    .btn-flip-cam {
       position: absolute;
-      top: 6px;
-      right: 6px;
-      width: 28px;
-      height: 28px;
+      top: 5px;
+      right: 5px;
+      width: 26px;
+      height: 26px;
       border-radius: 50%;
-      background: rgba(0,0,0,0.6);
-      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(0, 0, 0, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.3);
       color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
+      font-size: 0.8rem;
     }
 
-    /* Center Orb */
-    .orb-stage {
+    /* ------------------------------------------------------------- */
+    /* COMPACT FLOATING CAPSULE (The Core Assistant Island)          */
+    /* ------------------------------------------------------------- */
+    .capsule {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 14px 9px 12px;
+      background: var(--pill-bg);
+      border: 1px solid var(--pill-border);
+      border-radius: 999px;
+      box-shadow: 
+        0 14px 40px rgba(0, 0, 0, 0.65),
+        0 2px 10px rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease;
+      max-width: 90vw;
+    }
+
+    /* Compact Living Orb */
+    .orb-mini-stage {
       position: relative;
-      width: 240px;
-      height: 240px;
+      width: 44px;
+      height: 44px;
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
     }
 
-    .orb-flare {
+    .orb-mini-glow {
       position: absolute;
       width: 100%;
       height: 100%;
       border-radius: 50%;
-      filter: blur(48px);
-      transition: background 0.8s ease, opacity 0.8s ease;
-      will-change: transform, opacity;
+      filter: blur(14px);
+      opacity: 0.5;
+      transition: all 0.6s ease;
     }
 
-    .orb-ring {
-      position: absolute;
-      width: 165px;
-      height: 165px;
-      border-radius: 42% 58% 60% 40% / 46% 54% 46% 54%;
-      border: 1.5px solid rgba(255, 255, 255, 0.18);
-      animation: spinRing 14s linear infinite;
-      will-change: transform;
-      transition: border-color 0.6s ease;
-    }
-
-    .orb-ring:nth-child(2) {
-      width: 195px;
-      height: 195px;
-      border-radius: 58% 42% 40% 60% / 54% 46% 54% 46%;
-      animation: spinRing 18s linear infinite reverse;
-    }
-
-    .orb-core {
+    .orb-mini-core {
       position: relative;
-      width: 112px;
-      height: 112px;
+      width: 26px;
+      height: 26px;
       border-radius: 50%;
-      box-shadow: inset 0 4px 14px rgba(255, 255, 255, 0.45), inset 0 -8px 20px rgba(0, 0, 0, 0.6);
-      transition: background 0.6s ease, box-shadow 0.6s ease;
-      animation: floatCore 4.5s ease-in-out infinite alternate;
+      box-shadow: inset 0 2px 6px rgba(255,255,255,0.45);
+      transition: all 0.5s ease;
+      animation: coreFloat 3.5s ease-in-out infinite alternate;
     }
 
-    @keyframes spinRing { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    @keyframes floatCore { 0% { transform: translateY(-4px) scale(0.98); } 100% { transform: translateY(4px) scale(1.02); } }
+    @keyframes coreFloat {
+      0% { transform: scale(0.96); }
+      100% { transform: scale(1.04); }
+    }
 
-    body.state-idle .orb-flare { background: radial-gradient(circle, rgba(99, 102, 241, 0.35) 0%, transparent 65%); opacity: 0.45; }
-    body.state-idle .orb-core { background: radial-gradient(circle at 35% 35%, #a5b4fc 0%, #4338ca 45%, #0f172a 100%); }
-    body.state-idle .orb-ring { border-color: rgba(165, 180, 252, 0.2); }
+    /* States */
+    .state-idle .orb-mini-glow { background: rgba(99, 102, 241, 0.4); }
+    .state-idle .orb-mini-core { background: radial-gradient(circle at 35% 35%, #a5b4fc 0%, #4338ca 100%); }
 
-    body.state-listening .orb-flare { background: radial-gradient(circle, rgba(168, 85, 247, 0.7) 0%, transparent 70%); opacity: 0.9; }
-    body.state-listening .orb-core { background: radial-gradient(circle at 35% 35%, #f3e8ff 0%, #a855f7 40%, #3b0764 100%); }
-    body.state-listening .orb-ring { border-color: rgba(192, 132, 252, 0.45); }
+    .state-listening .orb-mini-glow {
+      background: rgba(168, 85, 247, 0.95);
+      opacity: 0.9;
+      transform: scale(1.25);
+    }
+    .state-listening .orb-mini-core {
+      background: radial-gradient(circle at 35% 35%, #f3e8ff 0%, #a855f7 100%);
+      box-shadow: 0 0 16px rgba(168, 85, 247, 0.8), inset 0 2px 8px #fff;
+    }
 
-    body.state-speaking .orb-flare { background: radial-gradient(circle, rgba(251, 191, 36, 0.8) 0%, rgba(244, 63, 94, 0.5) 45%, transparent 80%); opacity: 1; }
-    body.state-speaking .orb-core { background: radial-gradient(circle at 35% 35%, #fffbeb 0%, #f59e0b 30%, #e11d48 70%, #581c87 100%); }
-    body.state-speaking .orb-ring { border-color: rgba(251, 191, 36, 0.55); }
+    .state-speaking .orb-mini-glow {
+      background: rgba(251, 191, 36, 0.95);
+      opacity: 0.95;
+      transform: scale(1.35);
+    }
+    .state-speaking .orb-mini-core {
+      background: radial-gradient(circle at 35% 35%, #fffbeb 0%, #f59e0b 50%, #e11d48 100%);
+      box-shadow: 0 0 20px rgba(251, 191, 36, 0.85), inset 0 2px 8px #fff;
+    }
 
-    .caption {
-      margin-top: 18px;
-      font-size: 0.92rem;
-      font-weight: 500;
+    /* Assistant Status Text */
+    .capsule-info {
+      display: flex;
+      flex-direction: column;
+      min-width: 80px;
+    }
+
+    .capsule-title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+
+    .capsule-sub {
+      font-size: 0.68rem;
       color: var(--text-dim);
+      white-space: nowrap;
     }
 
-    /* Thumb Zone Controls */
-    .controls-zone {
-      margin-top: 24px;
-      width: 100%;
-      max-width: 320px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .btn-pill-start {
-      width: 100%;
-      border: none;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      color: #fff;
-      font-weight: 600;
-      font-size: 0.95rem;
-      padding: 15px 28px;
-      border-radius: 999px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-      cursor: pointer;
+    /* Button Controls inside Capsule */
+    .capsule-actions {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 10px;
-    }
-
-    .btn-pill-start:active { transform: scale(0.96); }
-
-    .call-dock { display: flex; align-items: center; gap: 14px; width: 100%; }
-
-    .dock-btn {
-      flex: 1;
-      border: none;
-      padding: 14px 18px;
-      border-radius: 999px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       gap: 8px;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
     }
 
-    .dock-mute {
+    .icon-pill-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.1);
       background: rgba(255, 255, 255, 0.08);
       color: var(--text);
-      border: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
     }
 
-    .dock-mute.muted {
-      background: rgba(239, 68, 68, 0.2);
+    .icon-pill-btn:active {
+      transform: scale(0.92);
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .btn-end-call {
+      background: rgba(239, 68, 68, 0.88);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-end-call:active {
+      background: var(--danger);
+    }
+
+    .icon-pill-btn.muted {
+      background: rgba(239, 68, 68, 0.25);
       color: #fca5a5;
       border-color: rgba(239, 68, 68, 0.4);
     }
 
-    .dock-end {
-      background: rgba(239, 68, 68, 0.85);
+    .btn-connect-single {
+      background: linear-gradient(135deg, #4338ca, #2563eb);
       color: #fff;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      box-shadow: 0 6px 22px rgba(239, 68, 68, 0.35);
+      border: 1px solid rgba(255,255,255,0.25);
+      padding: 0 16px;
+      height: 38px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
     }
 
-    .dock-btn:active { transform: scale(0.96); }
-
-    /* Drawer Sheets */
+    /* Slide-Up Settings Sheet */
     .sheet {
+      pointer-events: auto;
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
       background: var(--card-bg);
-      border-top: 1px solid var(--card-border);
+      border-top: 1px solid var(--pill-border);
       border-radius: 28px 28px 0 0;
-      backdrop-filter: blur(36px);
-      -webkit-backdrop-filter: blur(36px);
-      padding: 18px 24px calc(env(safe-area-inset-bottom, 16px) + 18px) 24px;
+      backdrop-filter: blur(40px);
+      -webkit-backdrop-filter: blur(40px);
+      padding: 18px 24px calc(env(safe-area-inset-bottom, 16px) + 20px) 24px;
       transform: translateY(102%);
       transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
       z-index: 30;
-      max-height: 84vh;
+      max-height: 80vh;
       overflow-y: auto;
+      color: var(--text);
     }
 
     .sheet.open { transform: translateY(0); }
     .sheet-handle { width: 40px; height: 4px; background: rgba(255, 255, 255, 0.25); border-radius: 99px; margin: 0 auto 16px auto; }
-    .sheet-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .sheet-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
     .sheet-title { font-size: 0.95rem; font-weight: 600; }
 
-    .field { margin-bottom: 14px; }
+    .field { margin-bottom: 12px; }
     .field label { display: block; font-size: 0.72rem; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
     .field input, .field select, .field textarea {
       width: 100%;
       background: rgba(0, 0, 0, 0.5);
-      border: 1px solid var(--card-border);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 12px;
-      padding: 12px 14px;
+      padding: 10px 12px;
       color: #fff;
-      font-size: 0.88rem;
+      font-size: 0.85rem;
       outline: none;
     }
 
-    .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
-    .toggle-label { font-size: 0.85rem; font-weight: 500; }
-    .toggle-desc { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; }
+    .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+    .toggle-label { font-size: 0.82rem; font-weight: 500; }
+    .toggle-desc { font-size: 0.7rem; color: var(--text-dim); margin-top: 2px; }
 
-    .switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+    .switch { position: relative; display: inline-block; width: 42px; height: 23px; flex-shrink: 0; }
     .switch input { opacity: 0; width: 0; height: 0; }
     .slider { position: absolute; cursor: pointer; inset: 0; background-color: #23293d; border-radius: 24px; transition: .3s; }
-    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .3s; }
+    .slider:before { position: absolute; content: ""; height: 17px; width: 17px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .3s; }
     input:checked + .slider { background-color: #7c3aed; }
-    input:checked + .slider:before { transform: translateX(20px); }
+    input:checked + .slider:before { transform: translateX(19px); }
 
-    .terminal { background: #020306; border: 1px solid var(--card-border); border-radius: 12px; padding: 12px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.73rem; line-height: 1.5; color: #94a3b8; }
-    .log-err { color: #f87171; }
-    .log-succ { color: #c084fc; }
     .hidden { display: none !important; }
   </style>
 </head>
 <body class="state-idle">
 
-  <div class="ambient-aurora"></div>
+  <!-- Tap anywhere outside to minimize to background -->
+  <div class="backdrop-dismiss" id="dismissBackdrop"></div>
 
-  <!-- Top Bar -->
-  <header>
-    <div class="status-pill">
-      <div class="status-dot"></div>
-      <span id="statusLabel">Disconnected</span>
-    </div>
-    <div class="actions-row">
-      <button class="btn-circle" id="openLogsBtn" title="Diagnostics">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
-      </button>
-      <button class="btn-circle" id="openSettingsBtn" title="Settings">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-      </button>
-      <!-- Quick Dismiss overlay button -->
-      <button class="btn-circle" id="dismissBtn" title="Close" style="color:#f87171;">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      </button>
-    </div>
-  </header>
-
-  <!-- Center Stage -->
-  <main class="hub">
-    <!-- Optional Camera Viewport (Hidden unless toggled on in settings) -->
-    <div class="camera-box hidden" id="cameraBox">
+  <!-- Floating Hub -->
+  <div class="floating-container">
+    <!-- Camera Viewport Preview (Only visible when toggled ON) -->
+    <div class="camera-float hidden" id="cameraBox">
       <video id="cameraVideo" autoplay playsinline muted></video>
-      <button class="btn-flip" id="flipCameraBtn">⇄</button>
+      <button class="btn-flip-cam" id="flipCameraBtn">⇄</button>
     </div>
 
-    <!-- Center Orb -->
-    <div class="orb-stage">
-      <div class="orb-flare"></div>
-      <div class="orb-ring"></div>
-      <div class="orb-ring"></div>
-      <div class="orb-core"></div>
-    </div>
+    <!-- Small Floating Capsule -->
+    <div class="capsule" id="capsule">
+      <div class="orb-mini-stage">
+        <div class="orb-mini-glow"></div>
+        <div class="orb-mini-core"></div>
+      </div>
 
-    <div class="caption" id="caption">Tap Start Call to talk</div>
+      <div class="capsule-info">
+        <div class="capsule-title" id="capsuleTitle">Voice</div>
+        <div class="capsule-sub" id="capsuleSub">Ready</div>
+      </div>
 
-    <div class="controls-zone">
-      <button class="btn-pill-start" id="connectBtn">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-        Start Call
-      </button>
-
-      <div class="call-dock hidden" id="callDock">
-        <button class="dock-btn dock-mute" id="muteBtn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-          <span id="muteBtnText">Mute</span>
+      <!-- Action Buttons -->
+      <div class="capsule-actions">
+        <button class="btn-connect-single" id="connectBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+          Start
         </button>
-        <button class="dock-btn dock-end" id="disconnectBtn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
-          End Call
+
+        <div class="capsule-actions hidden" id="liveActions">
+          <button class="icon-pill-btn" id="muteBtn" title="Mute">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+          </button>
+          <button class="icon-pill-btn btn-end-call" id="disconnectBtn" title="End Call">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
+          </button>
+        </div>
+
+        <button class="icon-pill-btn" id="openSettingsBtn" title="Settings">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         </button>
       </div>
     </div>
-  </main>
-
-  <div style="height: 16px;"></div>
+  </div>
 
   <!-- Settings Drawer -->
   <div class="sheet" id="settingsSheet">
     <div class="sheet-handle"></div>
     <div class="sheet-head">
-      <div class="sheet-title">Assistant Configuration</div>
-      <button class="btn-circle" id="closeSettingsBtn" style="border:none;">✕</button>
+      <div class="sheet-title">Configuration</div>
+      <button class="icon-pill-btn" id="closeSettingsBtn" style="border:none;">✕</button>
     </div>
     <div class="field">
       <label for="apiKey">Gemini API Key</label>
       <input type="password" id="apiKey" placeholder="AIzaSy..." />
     </div>
 
-    <!-- Auto-Connect on Launch -->
+    <!-- Google Search Grounding Toggle -->
     <div class="toggle-row">
       <div>
-        <div class="toggle-label">Auto-Connect on Launch</div>
-        <div class="toggle-desc">Instantly listen when launched via gesture / shortcut</div>
+        <div class="toggle-label">Google Search Grounding</div>
+        <div class="toggle-desc">Search web in real-time for live/current information</div>
       </div>
       <label class="switch">
-        <input type="checkbox" id="autoConnectToggle" checked />
+        <input type="checkbox" id="googleSearchToggle" checked />
         <span class="slider"></span>
       </label>
     </div>
@@ -467,10 +381,22 @@
     <div class="toggle-row">
       <div>
         <div class="toggle-label">Camera Vision Mode</div>
-        <div class="toggle-desc">Gemini can see through phone camera (Low-res 1 FPS)</div>
+        <div class="toggle-desc">Send 1 FPS low-res snapshot to Gemini</div>
       </div>
       <label class="switch">
         <input type="checkbox" id="cameraVisionToggle" />
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <!-- Auto-Connect on Launch -->
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-label">Auto-Connect on Launch</div>
+        <div class="toggle-desc">Listen immediately when triggered</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="autoConnectToggle" checked />
         <span class="slider"></span>
       </label>
     </div>
@@ -479,7 +405,7 @@
     <div class="toggle-row">
       <div>
         <div class="toggle-label">Speaker Echo Guard</div>
-        <div class="toggle-desc">Stops loudspeaker feedback loop</div>
+        <div class="toggle-desc">Prevents speaker acoustic feedback loop</div>
       </div>
       <label class="switch">
         <input type="checkbox" id="echoGuardToggle" checked />
@@ -491,7 +417,7 @@
     <div class="toggle-row">
       <div>
         <div class="toggle-label">Bluetooth Priority Mode</div>
-        <div class="toggle-desc">Keeps audio on media speaker</div>
+        <div class="toggle-desc">Keep audio on media speaker</div>
       </div>
       <label class="switch">
         <input type="checkbox" id="btPriorityToggle" checked />
@@ -499,10 +425,10 @@
       </label>
     </div>
 
-    <!-- System Prompt / Persona -->
+    <!-- Persona Prompt -->
     <div class="field" style="margin-top: 14px;">
-      <label for="systemPrompt">Assistant Persona / Instructions</label>
-      <textarea id="systemPrompt" rows="3">You are a concise, lightning-fast personal AI assistant. Keep responses natural, direct, conversational, and 1 to 2 sentences unless the user explicitly asks for detail.</textarea>
+      <label for="systemPrompt">Assistant Instructions</label>
+      <textarea id="systemPrompt" rows="2">You are a concise, lightning-fast personal voice assistant. Respond directly in 1 or 2 sentences.</textarea>
     </div>
 
     <div class="field">
@@ -526,19 +452,6 @@
     </div>
   </div>
 
-  <!-- Logs Drawer -->
-  <div class="sheet" id="logsSheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-head">
-      <div class="sheet-title">Session Diagnostics</div>
-      <button class="btn-circle" id="closeLogsBtn" style="border:none;">✕</button>
-    </div>
-    <div class="terminal" id="terminal">
-      <div>[System] Assistant ready.</div>
-    </div>
-  </div>
-
-  <!-- Offscreen canvas for downsampled camera frames -->
   <canvas id="offscreenCanvas" class="hidden" width="320" height="240"></canvas>
 
   <script>
@@ -553,7 +466,7 @@
     // Camera Vision Variables
     let cameraStream = null;
     let cameraInterval = null;
-    let currentFacingMode = "environment"; // default rear camera
+    let currentFacingMode = "environment";
     const cameraBox = document.getElementById("cameraBox");
     const cameraVideo = document.getElementById("cameraVideo");
     const offscreenCanvas = document.getElementById("offscreenCanvas");
@@ -567,6 +480,7 @@
     const modelSelect = document.getElementById("modelSelect");
     const voiceSelect = document.getElementById("voiceSelect");
     const systemPromptInput = document.getElementById("systemPrompt");
+    const googleSearchToggle = document.getElementById("googleSearchToggle");
     const autoConnectToggle = document.getElementById("autoConnectToggle");
     const cameraVisionToggle = document.getElementById("cameraVisionToggle");
     const echoGuardToggle = document.getElementById("echoGuardToggle");
@@ -575,36 +489,35 @@
     const connectBtn = document.getElementById("connectBtn");
     const disconnectBtn = document.getElementById("disconnectBtn");
     const muteBtn = document.getElementById("muteBtn");
-    const muteBtnText = document.getElementById("muteBtnText");
-    const dismissBtn = document.getElementById("dismissBtn");
+    const liveActions = document.getElementById("liveActions");
     const flipCameraBtn = document.getElementById("flipCameraBtn");
-    const callDock = document.getElementById("callDock");
-    const statusLabel = document.getElementById("statusLabel");
-    const caption = document.getElementById("caption");
-    const terminal = document.getElementById("terminal");
+    const dismissBackdrop = document.getElementById("dismissBackdrop");
 
+    const capsuleTitle = document.getElementById("capsuleTitle");
+    const capsuleSub = document.getElementById("capsuleSub");
     const settingsSheet = document.getElementById("settingsSheet");
-    const logsSheet = document.getElementById("logsSheet");
-    document.getElementById("openSettingsBtn").onclick = () => { logsSheet.classList.remove("open"); settingsSheet.classList.toggle("open"); };
-    document.getElementById("closeSettingsBtn").onclick = () => settingsSheet.classList.remove("open");
-    document.getElementById("openLogsBtn").onclick = () => { settingsSheet.classList.remove("open"); logsSheet.classList.toggle("open"); };
-    document.getElementById("closeLogsBtn").onclick = () => logsSheet.classList.remove("open");
 
-    // Native bridge dismiss (closes translucent window)
-    dismissBtn.onclick = () => {
-      if (window.AndroidBridge && window.AndroidBridge.dismiss) {
-        window.AndroidBridge.dismiss();
-      } else {
-        window.close();
+    document.getElementById("openSettingsBtn").onclick = () => settingsSheet.classList.toggle("open");
+    document.getElementById("closeSettingsBtn").onclick = () => settingsSheet.classList.remove("open");
+
+    // Tapping outside capsule minimizes app to background without killing call
+    dismissBackdrop.onclick = () => {
+      if (settingsSheet.classList.contains("open")) {
+        settingsSheet.classList.remove("open");
+        return;
+      }
+      if (window.AndroidBridge && window.AndroidBridge.minimize) {
+        window.AndroidBridge.minimize();
       }
     };
 
-    // Persistent Settings
+    // Persistent storage
     try {
       if (localStorage.getItem("gemini_live_key")) apiKeyInput.value = localStorage.getItem("gemini_live_key");
       if (localStorage.getItem("gemini_live_voice")) voiceSelect.value = localStorage.getItem("gemini_live_voice");
       if (localStorage.getItem("gemini_live_model")) modelSelect.value = localStorage.getItem("gemini_live_model");
       if (localStorage.getItem("gemini_live_system_prompt")) systemPromptInput.value = localStorage.getItem("gemini_live_system_prompt");
+      if (localStorage.getItem("gemini_live_search") !== null) googleSearchToggle.checked = localStorage.getItem("gemini_live_search") === "true";
       if (localStorage.getItem("gemini_live_auto_connect") !== null) autoConnectToggle.checked = localStorage.getItem("gemini_live_auto_connect") === "true";
       if (localStorage.getItem("gemini_live_camera_vision") !== null) cameraVisionToggle.checked = localStorage.getItem("gemini_live_camera_vision") === "true";
       if (localStorage.getItem("gemini_live_echo_guard") !== null) echoGuardToggle.checked = localStorage.getItem("gemini_live_echo_guard") === "true";
@@ -615,24 +528,16 @@
     voiceSelect.onchange = () => localStorage.setItem("gemini_live_voice", voiceSelect.value);
     modelSelect.onchange = () => localStorage.setItem("gemini_live_model", modelSelect.value);
     systemPromptInput.onchange = () => localStorage.setItem("gemini_live_system_prompt", systemPromptInput.value);
+    googleSearchToggle.onchange = () => localStorage.setItem("gemini_live_search", googleSearchToggle.checked);
     autoConnectToggle.onchange = () => localStorage.setItem("gemini_live_auto_connect", autoConnectToggle.checked);
     cameraVisionToggle.onchange = () => localStorage.setItem("gemini_live_camera_vision", cameraVisionToggle.checked);
     echoGuardToggle.onchange = () => localStorage.setItem("gemini_live_echo_guard", echoGuardToggle.checked);
     btPriorityToggle.onchange = () => localStorage.setItem("gemini_live_bt_priority", btPriorityToggle.checked);
 
-    function log(msg, type = "normal") {
-      const div = document.createElement("div");
-      if (type === "err") div.className = "log-err";
-      if (type === "succ") div.className = "log-succ";
-      div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-      terminal.appendChild(div);
-      terminal.scrollTop = terminal.scrollHeight;
-    }
-
-    function setSystemState(state, text) {
+    function setVisualState(state, title, sub) {
       document.body.className = `state-${state}`;
-      caption.innerText = text;
-      statusLabel.innerText = text;
+      capsuleTitle.innerText = title;
+      capsuleSub.innerText = sub;
     }
 
     // Connect & Start Voice Session
@@ -640,13 +545,11 @@
       const key = apiKeyInput.value.trim();
       if (!key) {
         settingsSheet.classList.add("open");
-        log("API Key required. Enter key in Settings.", "err");
         return;
       }
       try { localStorage.setItem("gemini_live_key", key); } catch(e) {}
 
-      setSystemState("idle", "Connecting...");
-      log("Initializing Audio & WebSocket...");
+      setVisualState("idle", "Connecting...", "Initializing");
 
       const useBtPriority = btPriorityToggle.checked;
       const audioConstraints = useBtPriority
@@ -656,12 +559,10 @@
       try {
         micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
       } catch (err) {
-        log(`Mic Error: ${err.message}`, "err");
-        setSystemState("idle", "Mic Access Denied");
+        setVisualState("idle", "Mic Blocked", "Access Denied");
         return;
       }
 
-      // Start Camera Vision if enabled
       if (cameraVisionToggle.checked) {
         await startCameraVision();
       }
@@ -672,18 +573,14 @@
 
       const chosenModel = modelSelect.value.trim();
       const endpoint = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(key)}`;
-      log(`Connecting to ${chosenModel}...`);
 
       try {
         ws = new WebSocket(endpoint);
       } catch (e) {
-        log(`WebSocket error: ${e.message}`, "err");
         return;
       }
 
       ws.onopen = () => {
-        log("Connected. Sending setup with system persona...", "succ");
-
         const setupPayload = {
           setup: {
             model: chosenModel,
@@ -697,7 +594,8 @@
             },
             systemInstruction: {
               parts: [{ text: systemPromptInput.value.trim() }]
-            }
+            },
+            ...(googleSearchToggle.checked ? { tools: [{ googleSearch: {} }] } : {})
           }
         };
 
@@ -709,8 +607,8 @@
         }
 
         connectBtn.classList.add("hidden");
-        callDock.classList.remove("hidden");
-        setSystemState("listening", "Listening...");
+        liveActions.classList.remove("hidden");
+        setVisualState("listening", "Listening", "Go ahead");
       };
 
       ws.onmessage = async (evt) => {
@@ -719,42 +617,30 @@
         try {
           const res = JSON.parse(raw);
           handleServerTurn(res);
-        } catch(e) {
-          log(`Data error: ${e.message}`, "err");
-        }
+        } catch(e) {}
       };
 
-      ws.onerror = () => log("WebSocket transport error.", "err");
-      ws.onclose = (evt) => {
-        log(`Session Ended [Code: ${evt.code}]`, "err");
-        cleanUpSession();
-      };
+      ws.onclose = () => cleanUpSession();
     });
 
-    // Camera Vision Initialization
     async function startCameraVision() {
       try {
         cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: currentFacingMode, width: { ideal: 480 }, height: { ideal: 360 } },
+          video: { facingMode: currentFacingMode, width: { ideal: 320 }, height: { ideal: 240 } },
           audio: false
         });
         cameraVideo.srcObject = cameraStream;
         cameraBox.classList.remove("hidden");
-        log("Camera vision preview active.", "succ");
-      } catch(e) {
-        log("Camera access note: " + e.message);
-      }
+      } catch(e) {}
     }
 
     flipCameraBtn.onclick = async () => {
       currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(t => t.stop());
-      }
+      if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
       await startCameraVision();
     };
 
-    // Stream 1 Low-Res JPEG Frame Every 1.5 Seconds (Smooth & Battery Friendly)
+    // FIXED: Uses dedicated realtimeInput.video format
     function startCameraStreaming() {
       if (cameraInterval) clearInterval(cameraInterval);
       cameraInterval = setInterval(() => {
@@ -766,12 +652,10 @@
 
         const frame = {
           realtimeInput: {
-            mediaChunks: [
-              {
-                mimeType: "image/jpeg",
-                data: base64Data
-              }
-            ]
+            video: {
+              data: base64Data,
+              mimeType: "image/jpeg"
+            }
           }
         };
         ws.send(JSON.stringify(frame));
@@ -796,8 +680,8 @@
         const frame = {
           realtimeInput: {
             audio: {
-              mimeType: "audio/pcm;rate=16000",
-              data: b64
+              data: b64,
+              mimeType: "audio/pcm;rate=16000"
             }
           }
         };
@@ -806,17 +690,15 @@
 
       source.connect(micProcessor);
       micProcessor.connect(micCtx.destination);
-      log("Microphone streaming active.", "succ");
     }
 
     function handleServerTurn(msg) {
       if (!msg.serverContent) return;
 
       if (msg.serverContent.interrupted) {
-        log("Interrupted by user.");
         stopAudioPlayback();
         isModelSpeaking = false;
-        setSystemState("listening", "Listening...");
+        setVisualState("listening", "Listening", "Go ahead");
         return;
       }
 
@@ -835,13 +717,11 @@
         }
       }
 
-      if (msg.serverContent.turnComplete) {
-        scheduleTurnEnd();
-      }
+      if (msg.serverContent.turnComplete) scheduleTurnEnd();
     }
 
     function playPCM(base64Audio) {
-      setSystemState("speaking", "Speaking...");
+      setVisualState("speaking", "Speaking", "Gemini...");
 
       const binary = atob(base64Audio);
       const len = binary.length;
@@ -868,21 +748,18 @@
       src.onended = () => {
         const idx = activeSources.indexOf(src);
         if (idx !== -1) activeSources.splice(idx, 1);
-        if (activeSources.length === 0) {
-          scheduleTurnEnd();
-        }
+        if (activeSources.length === 0) scheduleTurnEnd();
       };
     }
 
     function scheduleTurnEnd() {
       if (activeSources.length > 0) return;
-
       if (echoCooldownTimer) clearTimeout(echoCooldownTimer);
       echoCooldownTimer = setTimeout(() => {
         isModelSpeaking = false;
         echoCooldownTimer = null;
         if (ws && ws.readyState === WebSocket.OPEN) {
-          setSystemState("listening", "Listening...");
+          setVisualState("listening", "Listening", "Go ahead");
         }
       }, 350);
     }
@@ -931,13 +808,14 @@
     muteBtn.addEventListener("click", () => {
       isMuted = !isMuted;
       muteBtn.classList.toggle("muted", isMuted);
-      muteBtnText.innerText = isMuted ? "Unmute" : "Mute";
-      caption.innerText = isMuted ? "Muted" : "Listening...";
     });
 
     disconnectBtn.addEventListener("click", () => {
       if (ws) ws.close();
       cleanUpSession();
+      if (window.AndroidBridge && window.AndroidBridge.closeApp) {
+        window.AndroidBridge.closeApp();
+      }
     });
 
     function cleanUpSession() {
@@ -958,16 +836,15 @@
       }
       isMuted = false;
       muteBtn.classList.remove("muted");
-      muteBtnText.innerText = "Mute";
       connectBtn.classList.remove("hidden");
-      callDock.classList.add("hidden");
-      setSystemState("idle", "Tap Start Call to talk");
+      liveActions.classList.add("hidden");
+      setVisualState("idle", "Voice", "Ready");
     }
 
-    // Auto-Connect on launch if enabled and API key is present
+    // Auto-Connect on launch if enabled
     window.addEventListener("DOMContentLoaded", () => {
       if (autoConnectToggle.checked && apiKeyInput.value.trim()) {
-        setTimeout(() => connectBtn.click(), 300);
+        setTimeout(() => connectBtn.click(), 250);
       }
     });
   </script>

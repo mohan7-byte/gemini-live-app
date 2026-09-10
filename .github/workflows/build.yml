@@ -30,6 +30,8 @@ jobs:
         run: |
           mkdir -p app/src/main/java/com/gemini/live
           mkdir -p app/src/main/assets
+          mkdir -p app/src/main/res/xml
+          mkdir -p app/src/main/res/values
           mkdir -p app/src/main/res/mipmap-xxxhdpi
           mkdir -p app/src/main/res/mipmap-xxhdpi
           mkdir -p app/src/main/res/mipmap-xhdpi
@@ -52,6 +54,27 @@ jobs:
             cp icon.png app/src/main/res/mipmap-hdpi/ic_launcher.png
             cp icon.png app/src/main/res/mipmap-mdpi/ic_launcher.png
           fi
+
+          # Strings & Accessibility XML
+          cat << 'EOF' > app/src/main/res/values/strings.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">Voice</string>
+              <string name="accessibility_desc">Double-press Volume Down to launch Voice assistant instantly over any screen or lock screen.</string>
+          </resources>
+          EOF
+
+          cat << 'EOF' > app/src/main/res/xml/accessibility_service_config.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+              android:accessibilityEventTypes="typeAllMask"
+              android:accessibilityFeedbackType="feedbackGeneric"
+              android:accessibilityFlags="flagDefault|flagRequestFilterKeyEvents"
+              android:canRequestFilterKeyEvents="true"
+              android:canRetrieveWindowContent="false"
+              android:description="@string/accessibility_desc"
+              android:notificationTimeout="100" />
+          EOF
 
           cat << 'EOF' > gradle.properties
           android.useAndroidX=true
@@ -93,8 +116,8 @@ jobs:
                   applicationId "com.gemini.live"
                   minSdk 24
                   targetSdk 34
-                  versionCode 7
-                  versionName "1.6"
+                  versionCode 8
+                  versionName "1.7"
               }
               buildTypes {
                   release {
@@ -104,7 +127,7 @@ jobs:
           }
           EOF
 
-          # Manifest
+          # Manifest with Accessibility Service & System Alert
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -112,6 +135,7 @@ jobs:
               <uses-permission android:name="android.permission.RECORD_AUDIO" />
               <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
               <uses-permission android:name="android.permission.CAMERA" />
+              <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
               <uses-feature android:name="android.hardware.camera" android:required="false" />
 
               <application
@@ -136,11 +160,73 @@ jobs:
                           <category android:name="android.intent.category.DEFAULT" />
                       </intent-filter>
                   </activity>
+
+                  <service
+                      android:name=".VolumeTriggerService"
+                      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.accessibilityservice.AccessibilityService" />
+                      </intent-filter>
+                      <meta-data
+                          android:name="android.accessibilityservice"
+                          android:resource="@xml/accessibility_service_config" />
+                  </service>
               </application>
           </manifest>
           EOF
 
-          # Native MainActivity without password prompt + keeps background timers running
+          # VolumeTriggerService.java: Listens for double-click Volume Down
+          cat << 'EOF' > app/src/main/java/com/gemini/live/VolumeTriggerService.java
+          package com.gemini.live;
+
+          import android.accessibilityservice.AccessibilityService;
+          import android.content.Intent;
+          import android.os.SystemClock;
+          import android.view.KeyEvent;
+          import android.view.accessibility.AccessibilityEvent;
+
+          public class VolumeTriggerService extends AccessibilityService {
+              private long lastVolumeDownTime = 0;
+              private static final long DOUBLE_PRESS_INTERVAL = 450; // milliseconds
+
+              @Override
+              public void onAccessibilityEvent(AccessibilityEvent event) {}
+
+              @Override
+              public void onInterrupt() {}
+
+              @Override
+              protected boolean onKeyEvent(KeyEvent event) {
+                  int keyCode = event.getKeyCode();
+                  int action = event.getAction();
+
+                  if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+                      if (action == KeyEvent.ACTION_DOWN) {
+                          long now = SystemClock.uptimeMillis();
+                          if (now - lastVolumeDownTime < DOUBLE_PRESS_INTERVAL) {
+                              lastVolumeDownTime = 0;
+                              launchAssistant();
+                              return true; // Consume event to prevent second volume drop
+                          } else {
+                              lastVolumeDownTime = now;
+                          }
+                      }
+                  }
+                  return super.onKeyEvent(event);
+              }
+
+              private void launchAssistant() {
+                  Intent intent = new Intent(this, MainActivity.class);
+                  intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK 
+                                | Intent.FLAG_ACTIVITY_SINGLE_TOP 
+                                | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                  startActivity(intent);
+              }
+          }
+          EOF
+
+          # MainActivity.java: Renders over lockscreen and provides Settings bridge
           cat << 'EOF' > app/src/main/java/com/gemini/live/MainActivity.java
           package com.gemini.live;
 
@@ -168,7 +254,6 @@ jobs:
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
 
-                  // Show over lockscreen without requesting keyguard dismissal
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
                       setShowWhenLocked(true);
                       setTurnScreenOn(true);
@@ -209,6 +294,14 @@ jobs:
                       public void closeApp() {
                           runOnUiThread(() -> finish());
                       }
+                      @JavascriptInterface
+                      public void openAccessibilitySettings() {
+                          runOnUiThread(() -> {
+                              Intent intent = new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS);
+                              intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                              startActivity(intent);
+                          });
+                      }
                   }, "AndroidBridge");
 
                   webView.setWebChromeClient(new WebChromeClient() {
@@ -224,24 +317,29 @@ jobs:
               @Override
               protected void onPause() {
                   super.onPause();
-                  // Keep JavaScript timers and WebAudio streaming in background
-                  if (webView != null) {
-                      webView.resumeTimers();
-                  }
+                  if (webView != null) webView.resumeTimers();
               }
 
               @Override
               protected void onStop() {
                   super.onStop();
-                  if (webView != null) {
-                      webView.resumeTimers();
-                  }
+                  if (webView != null) webView.resumeTimers();
               }
 
               @Override
               protected void onNewIntent(Intent intent) {
                   super.onNewIntent(intent);
                   setIntent(intent);
+
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                      setShowWhenLocked(true);
+                      setTurnScreenOn(true);
+                  }
+
+                  if (webView != null) {
+                      webView.resumeTimers();
+                      webView.evaluateJavascript("if (typeof autoConnectOnWake === 'function') autoConnectOnWake();", null);
+                  }
               }
 
               @Override
@@ -271,8 +369,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete v1.0 --yes || true
-          git tag -d v1.0 || true
-          gh release create v1.0 app/build/outputs/apk/debug/app-debug.apk \
-            --title "Voice v1.6" \
-            --notes "Voice Assistant v1.6 - Fixed Lockscreen, Video Frame Protocol & Background Audio" || true
+          gh release delete v1.7 --yes || true
+          git tag -d v1.7 || true
+          gh release create v1.7 app/build/outputs/apk/debug/app-debug.apk \
+            --title "Voice v1.7" \
+            --notes "Voice Assistant v1.7 - Hardware Volume Down Double-Click Trigger with Lockscreen Bypass" || true

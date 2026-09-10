@@ -36,17 +36,16 @@ jobs:
           mkdir -p app/src/main/res/mipmap-hdpi
           mkdir -p app/src/main/res/mipmap-mdpi
 
-          # Copy index.html into Android Assets
+          # Copy index.html
           cp index.html app/src/main/assets/index.html
 
-          # Fallback placeholder icon
+          # Fallback icon
           echo "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAATUlEQVR42u3PMQEAAAgEIPuX1hgc/LDBV9JJ6rWTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwBv0hQABH1mYugAAAABJRU5ErkJggg==" | base64 -d > app/src/main/res/mipmap-hdpi/ic_launcher.png
           cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-mdpi/ic_launcher.png
           cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xhdpi/ic_launcher.png
           cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xxhdpi/ic_launcher.png
           cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
 
-          # Overwrite with custom uploaded icon if available
           if [ -f icon.png ]; then
             cp icon.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
             cp icon.png app/src/main/res/mipmap-xxhdpi/ic_launcher.png
@@ -83,11 +82,11 @@ jobs:
 
           # settings.gradle
           cat << 'EOF' > settings.gradle
-          rootProject.name = "GeminiLive"
+          rootProject.name = "Voice"
           include ':app'
           EOF
 
-          # App build.gradle (Pure lightweight native build)
+          # App build.gradle
           cat << 'EOF' > app/build.gradle
           apply plugin: 'com.android.application'
 
@@ -99,8 +98,8 @@ jobs:
                   applicationId "com.gemini.live"
                   minSdk 24
                   targetSdk 34
-                  versionCode 2
-                  versionName "1.1"
+                  versionCode 3
+                  versionName "1.2"
               }
               buildTypes {
                   release {
@@ -110,42 +109,58 @@ jobs:
           }
           EOF
 
-          # AndroidManifest.xml
+          # AndroidManifest.xml: Translucent theme, Lockscreen show, and ASSIST filter
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
               <uses-permission android:name="android.permission.RECORD_AUDIO" />
               <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+              <uses-permission android:name="android.permission.CAMERA" />
+              <uses-feature android:name="android.hardware.camera" android:required="false" />
 
               <application
                   android:label="Voice"
                   android:icon="@mipmap/ic_launcher"
                   android:hardwareAccelerated="true"
                   android:usesCleartextTraffic="true"
-                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+                  android:theme="@android:style/Theme.Translucent.NoTitleBar">
                   <activity
                       android:name=".MainActivity"
                       android:exported="true"
+                      android:showWhenLocked="true"
+                      android:turnScreenOn="true"
                       android:configChanges="orientation|screenSize|keyboardHidden">
+                      <!-- Standard App Launcher -->
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                      <!-- Android Digital Assistant Intent Filter -->
+                      <intent-filter>
+                          <action android:name="android.intent.action.ASSIST" />
+                          <category android:name="android.intent.category.DEFAULT" />
                       </intent-filter>
                   </activity>
               </application>
           </manifest>
           EOF
 
-          # Native MainActivity.java (Standard Activity avoids theme-mismatch crashes)
+          # MainActivity.java: Hardware accelerated translucent window + Camera & Mic auto-grant
           cat << 'EOF' > app/src/main/java/com/gemini/live/MainActivity.java
           package com.gemini.live;
 
           import android.Manifest;
           import android.app.Activity;
           import android.content.pm.PackageManager;
+          import android.graphics.Color;
+          import android.graphics.drawable.ColorDrawable;
+          import android.os.Build;
           import android.os.Bundle;
           import android.view.KeyEvent;
+          import android.view.View;
+          import android.view.WindowManager;
+          import android.webkit.JavascriptInterface;
           import android.webkit.PermissionRequest;
           import android.webkit.WebChromeClient;
           import android.webkit.WebSettings;
@@ -157,12 +172,32 @@ jobs:
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
-                  
-                  if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                      requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 101);
+
+                  // Show over lockscreen
+                  getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                          | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                          | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                      setShowWhenLocked(true);
+                      setTurnScreenOn(true);
+                  }
+
+                  // Transparent activity window
+                  getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+
+                  // Request Mic & Camera
+                  String[] perms = { Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA };
+                  for (String p : perms) {
+                      if (checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) {
+                          requestPermissions(perms, 101);
+                          break;
+                      }
                   }
 
                   webView = new WebView(this);
+                  webView.setBackgroundColor(Color.TRANSPARENT);
+                  webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
                   setContentView(webView);
 
                   WebSettings s = webView.getSettings();
@@ -172,6 +207,14 @@ jobs:
                   s.setMediaPlaybackRequiresUserGesture(false);
                   s.setAllowFileAccess(true);
                   s.setAllowContentAccess(true);
+
+                  // Bridge to close floating overlay from JS
+                  webView.addJavascriptInterface(new Object() {
+                      @JavascriptInterface
+                      public void dismiss() {
+                          runOnUiThread(() -> finish());
+                      }
+                  }, "AndroidBridge");
 
                   webView.setWebChromeClient(new WebChromeClient() {
                       @Override
@@ -185,8 +228,8 @@ jobs:
 
               @Override
               public boolean onKeyDown(int keyCode, KeyEvent event) {
-                  if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
-                      webView.goBack();
+                  if (keyCode == KeyEvent.KEYCODE_BACK) {
+                      finish();
                       return true;
                   }
                   return super.onKeyDown(keyCode, event);
@@ -213,5 +256,5 @@ jobs:
           gh release delete v1.0 --yes || true
           git tag -d v1.0 || true
           gh release create v1.0 app/build/outputs/apk/debug/app-debug.apk \
-            --title "Voice APK" \
-            --notes "Voice App v1.1" || true
+            --title "Voice Assistant APK" \
+            --notes "Voice Assistant v1.2 with Floating Translucent Shell, Auto-Connect, and Camera Vision" || true

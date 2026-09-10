@@ -14,6 +14,7 @@
       --danger: #ef4444;
       --purple: #c084fc;
       --amber: #fbbf24;
+      --cyan: #06b6d4;
     }
 
     * {
@@ -106,8 +107,40 @@
       box-shadow: 0 20px 45px rgba(0, 0, 0, 0.75);
       backdrop-filter: blur(36px);
       -webkit-backdrop-filter: blur(36px);
-      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
       max-width: 92vw;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .task-progress-bar {
+      position: absolute;
+      bottom: 0;
+      left: 16px;
+      right: 16px;
+      height: 2.5px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 99px;
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .task-progress-inner {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, transparent);
+      transform: translateX(-100%);
+    }
+
+    .state-working .task-progress-bar { opacity: 1; }
+    .state-working .task-progress-inner {
+      animation: taskShimmer 1.3s infinite linear;
+    }
+
+    @keyframes taskShimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
     }
 
     .orb-slot {
@@ -127,7 +160,7 @@
       border-radius: 50%;
       filter: blur(12px);
       opacity: 0.5;
-      transition: all 0.5s ease;
+      transition: all 0.4s ease;
     }
 
     .orb-core {
@@ -158,6 +191,23 @@
       box-shadow: 0 0 14px rgba(168, 85, 247, 0.8), inset 0 2px 6px #fff;
     }
 
+    /* Working / Autonomous Task State */
+    .state-working .orb-glow {
+      background: rgba(6, 182, 212, 0.95);
+      opacity: 0.95;
+      transform: scale(1.35);
+      animation: workingPulse 1.2s ease-in-out infinite alternate;
+    }
+    .state-working .orb-core {
+      background: radial-gradient(circle at 35% 35%, #cffafe 0%, #06b6d4 50%, #0e7490 100%);
+      box-shadow: 0 0 18px rgba(6, 182, 212, 0.9), inset 0 2px 6px #fff;
+    }
+
+    @keyframes workingPulse {
+      0% { transform: scale(1.15); opacity: 0.75; }
+      100% { transform: scale(1.4); opacity: 1; }
+    }
+
     .state-speaking .orb-glow {
       background: rgba(251, 191, 36, 0.95);
       opacity: 0.95;
@@ -171,7 +221,8 @@
     .capsule-text {
       display: flex;
       flex-direction: column;
-      min-width: 80px;
+      min-width: 90px;
+      max-width: 170px;
     }
 
     .capsule-status {
@@ -180,13 +231,20 @@
       color: var(--text);
       letter-spacing: -0.01em;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .capsule-sub {
       font-size: 0.68rem;
       color: var(--text-dim);
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: color 0.2s ease;
     }
+
+    .state-working .capsule-sub { color: #67e8f9; font-weight: 500; }
 
     .action-group {
       display: flex;
@@ -267,6 +325,7 @@
       color: #fff;
       font-size: 0.85rem;
       outline: none;
+      user-select: text;
     }
 
     .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
@@ -341,6 +400,10 @@
         <button class="icon-btn" id="openSettingsBtn" title="Settings">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         </button>
+      </div>
+
+      <div class="task-progress-bar">
+        <div class="task-progress-inner"></div>
       </div>
     </div>
   </div>
@@ -439,23 +502,22 @@
   <canvas id="offscreenCanvas" class="hidden" width="320" height="240"></canvas>
 
   <script>
-    const JARVIS_DEFAULT_PROMPT = `You are Voice (Jarvis), an autonomous Android assistant with direct device control.
+    const JARVIS_DEFAULT_PROMPT = `You are Voice (Jarvis), an autonomous Android assistant with physical device control.
 
 AUTONOMOUS EXECUTION PROTOCOL:
-1. When asked to achieve a goal (e.g. download a PDF, play a video, message someone, find info):
-   - Break it down and execute steps autonomously in sequence without stopping to ask for routine confirmations.
+1. When asked to achieve a goal (e.g. type in a note, search a video, download a PDF, send a message):
+   - Perform the chain of actions autonomously without stopping to ask for routine confirmation.
+   - When asked to type in Notes or any app: open the app first (if not open), wait 1 second using wait_seconds(1), then call type_text.
    - Use direct hyper-intents first for speed: search_youtube, search_web, open_whatsapp, or search_contacts.
-   - After triggering an action or loading a page, call wait_seconds(1) or read_screen_text / capture_screen to inspect and verify the outcome.
-   - If a cookie banner, ad, or popup appears, dismiss it (using tap_element or navigate_system 'back') and continue the mission.
-2. CONTACT RESOLUTION:
-   - When asked to call or message a person by name, ALWAYS call search_contacts first to retrieve their phone number.
-3. VISUAL TOUCH ENGINE:
-   - If an element has text or content description, use tap_element.
-   - If an item is an icon, canvas, or unlabeled graphic, use capture_screen, locate coordinates, and call tap_coordinates.
-   - Use scroll('down') or swipe when more content is below the fold.
-4. RESPONSE CADENCE:
-   - Perform chained tool calls silently until the objective is accomplished.
-   - Speak a concise 1-sentence confirmation once finished.`;
+   - Verify changes using read_screen_text or capture_screen.
+2. PHYSICAL TOUCH & TYPING:
+   - Use type_text to insert text into any active app or note.
+   - Use tap_element to click buttons or items by label.
+   - Use tap_coordinates for unlabelled icons or canvas elements.
+   - Use scroll('down') or swipe when content is off-screen.
+3. CONVERSATIONAL CADENCE:
+   - Execute chained tool steps silently until the mission is finished.
+   - Speak a concise 1-sentence confirmation once complete.`;
 
     let ws = null;
     let audioCtx = null;
@@ -500,8 +562,22 @@ AUTONOMOUS EXECUTION PROTOCOL:
     const capsuleSub = document.getElementById("capsuleSub");
     const settingsSheet = document.getElementById("settingsSheet");
 
-    document.getElementById("openSettingsBtn").onclick = () => settingsSheet.classList.toggle("open");
-    document.getElementById("closeSettingsBtn").onclick = () => settingsSheet.classList.remove("open");
+    function setSettingsOpen(isOpen) {
+      if (isOpen) {
+        settingsSheet.classList.add("open");
+        if (window.AndroidBridge && window.AndroidBridge.setFocusable) {
+          window.AndroidBridge.setFocusable(true);
+        }
+      } else {
+        settingsSheet.classList.remove("open");
+        if (window.AndroidBridge && window.AndroidBridge.setFocusable) {
+          window.AndroidBridge.setFocusable(false);
+        }
+      }
+    }
+
+    document.getElementById("openSettingsBtn").onclick = () => setSettingsOpen(true);
+    document.getElementById("closeSettingsBtn").onclick = () => setSettingsOpen(false);
 
     document.getElementById("openAccessibilitySettingsBtn").onclick = () => {
       if (window.AndroidBridge && window.AndroidBridge.openAccessibilitySettings) {
@@ -511,7 +587,7 @@ AUTONOMOUS EXECUTION PROTOCOL:
 
     dismissBackdrop.onclick = () => {
       if (settingsSheet.classList.contains("open")) {
-        settingsSheet.classList.remove("open");
+        setSettingsOpen(false);
         return;
       }
       if (window.AndroidBridge && window.AndroidBridge.minimize) {
@@ -553,6 +629,33 @@ AUTONOMOUS EXECUTION PROTOCOL:
       capsuleSub.innerText = sub;
     }
 
+    function getActionDescription(name, args) {
+      switch(name) {
+        case "open_application": return `Opening ${args.app_name || 'app'}...`;
+        case "type_text": {
+          const preview = (args.text || '').length > 18 ? (args.text || '').substring(0, 15) + '...' : (args.text || '');
+          return `Typing: "${preview}"`;
+        }
+        case "tap_element": return `Tapping "${args.label || 'button'}"...`;
+        case "tap_coordinates": return `Tapping (${args.x}, ${args.y})...`;
+        case "scroll": return `Scrolling ${args.direction || 'down'}...`;
+        case "swipe": return `Swiping screen...`;
+        case "wait_seconds": return `Waiting for UI (${args.seconds || 1}s)...`;
+        case "read_screen_text": return `Reading screen text...`;
+        case "capture_screen": return `Analyzing screen image...`;
+        case "search_contacts": return `Searching contact "${args.query || ''}"...`;
+        case "search_youtube": return `Searching YouTube...`;
+        case "search_web": return `Searching Google...`;
+        case "open_whatsapp": return `Opening WhatsApp...`;
+        case "make_phone_call": return `Calling ${args.phone_number || ''}...`;
+        case "send_sms": return `Sending SMS...`;
+        case "toggle_flashlight": return `Toggling flashlight...`;
+        case "set_volume": return `Setting volume...`;
+        case "navigate_system": return `Navigating ${args.action || ''}...`;
+        default: return `Executing action...`;
+      }
+    }
+
     function resetInactivityTimer() {
       if (inactivityTimer) {
         clearTimeout(inactivityTimer);
@@ -574,102 +677,57 @@ AUTONOMOUS EXECUTION PROTOCOL:
       }, 4000);
     }
 
-    // Full 18-Tool Jarvis Autonomous Engine
     const deviceTools = [
       {
         functionDeclarations: [
           {
-            name: "search_contacts",
-            description: "Search phone contacts by name to resolve their phone number for calling or texting",
+            name: "type_text",
+            description: "Insert text directly into the active editable field or open note on screen",
             parameters: {
               type: "OBJECT",
               properties: {
-                query: { type: "STRING", description: "Contact name or nickname to search" }
+                text: { type: "STRING", description: "The exact text to type or write" }
               },
-              required: ["query"]
+              required: ["text"]
             }
-          },
-          {
-            name: "search_youtube",
-            description: "Directly open YouTube search with the target video or topic query",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                query: { type: "STRING", description: "Video or search term to look up on YouTube" }
-              },
-              required: ["query"]
-            }
-          },
-          {
-            name: "search_web",
-            description: "Directly open Google Web Search in the default browser",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                query: { type: "STRING", description: "Search query for Google" }
-              },
-              required: ["query"]
-            }
-          },
-          {
-            name: "open_whatsapp",
-            description: "Directly launch WhatsApp chat with a contact phone number and pre-filled message",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                phone_number: { type: "STRING", description: "Recipient phone number with country code" },
-                message: { type: "STRING", description: "Message body" }
-              },
-              required: ["phone_number", "message"]
-            }
-          },
-          {
-            name: "capture_screen",
-            description: "Grab a screenshot of the user's phone screen to visually inspect layout, photos, diagrams, or canvas buttons",
-            parameters: { type: "OBJECT", properties: {} }
-          },
-          {
-            name: "read_screen_text",
-            description: "Extract and read all UI text and descriptions currently visible on the screen",
-            parameters: { type: "OBJECT", properties: {} }
           },
           {
             name: "tap_element",
-            description: "Tap or click a UI button or element matching a specific text or content description",
+            description: "Click a UI element or button matching a label or description",
             parameters: {
               type: "OBJECT",
               properties: {
-                label: { type: "STRING", description: "Text or label of the button to click" }
+                label: { type: "STRING", description: "Text or label of the item to tap" }
               },
               required: ["label"]
             }
           },
           {
             name: "tap_coordinates",
-            description: "Physically tap exact screen coordinates (X, Y) when clicking icons or unlabelled images",
+            description: "Physically tap exact screen pixel coordinates (X, Y)",
             parameters: {
               type: "OBJECT",
               properties: {
-                x: { type: "INTEGER", description: "X screen pixel coordinate" },
-                y: { type: "INTEGER", description: "Y screen pixel coordinate" }
+                x: { type: "INTEGER", description: "X pixel" },
+                y: { type: "INTEGER", description: "Y pixel" }
               },
               required: ["x", "y"]
             }
           },
           {
             name: "scroll",
-            description: "Scroll the screen up or down to see hidden content",
+            description: "Scroll screen up or down",
             parameters: {
               type: "OBJECT",
               properties: {
-                direction: { type: "STRING", enum: ["down", "up"], description: "Direction to scroll" }
+                direction: { type: "STRING", enum: ["down", "up"] }
               },
               required: ["direction"]
             }
           },
           {
             name: "swipe",
-            description: "Simulate a physical finger drag across screen",
+            description: "Simulate a physical finger swipe across screen",
             parameters: {
               type: "OBJECT",
               properties: {
@@ -677,100 +735,140 @@ AUTONOMOUS EXECUTION PROTOCOL:
                 start_y: { type: "INTEGER" },
                 end_x: { type: "INTEGER" },
                 end_y: { type: "INTEGER" },
-                duration_ms: { type: "INTEGER", description: "Duration of swipe in milliseconds" }
+                duration_ms: { type: "INTEGER" }
               },
               required: ["start_x", "start_y", "end_x", "end_y"]
             }
           },
           {
             name: "wait_seconds",
-            description: "Pause execution for 1 to 4 seconds to allow page or app to load",
+            description: "Pause execution for 1 to 4 seconds for screen/app to load",
             parameters: {
               type: "OBJECT",
               properties: {
-                seconds: { type: "NUMBER", description: "Seconds to wait (1 to 4)" }
+                seconds: { type: "NUMBER" }
               },
               required: ["seconds"]
             }
           },
           {
-            name: "type_text",
-            description: "Insert text into the currently focused or editable input field on screen",
+            name: "read_screen_text",
+            description: "Extract and read all text visible on screen",
+            parameters: { type: "OBJECT", properties: {} }
+          },
+          {
+            name: "capture_screen",
+            description: "Capture screenshot to visually analyze image or canvas buttons",
+            parameters: { type: "OBJECT", properties: {} }
+          },
+          {
+            name: "open_application",
+            description: "Launch an app by name (e.g. Notes, WhatsApp, Chrome)",
             parameters: {
               type: "OBJECT",
               properties: {
-                text: { type: "STRING", description: "The text to insert" }
+                app_name: { type: "STRING" }
               },
-              required: ["text"]
+              required: ["app_name"]
+            }
+          },
+          {
+            name: "search_contacts",
+            description: "Search contact phone number by name",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                query: { type: "STRING" }
+              },
+              required: ["query"]
+            }
+          },
+          {
+            name: "search_youtube",
+            description: "Open YouTube searching for a video or query",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                query: { type: "STRING" }
+              },
+              required: ["query"]
+            }
+          },
+          {
+            name: "search_web",
+            description: "Open Google Search in browser",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                query: { type: "STRING" }
+              },
+              required: ["query"]
+            }
+          },
+          {
+            name: "open_whatsapp",
+            description: "Open WhatsApp chat with prefilled message",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                phone_number: { type: "STRING" },
+                message: { type: "STRING" }
+              },
+              required: ["phone_number", "message"]
             }
           },
           {
             name: "toggle_flashlight",
-            description: "Turn the flashlight torch on or off",
+            description: "Turn flashlight on or off",
             parameters: {
               type: "OBJECT",
               properties: {
-                state: { type: "BOOLEAN", description: "true for ON, false for OFF" }
+                state: { type: "BOOLEAN" }
               },
               required: ["state"]
             }
           },
           {
             name: "set_volume",
-            description: "Set the device media volume percentage (0 to 100)",
+            description: "Set volume (0 to 100)",
             parameters: {
               type: "OBJECT",
               properties: {
-                level_percent: { type: "INTEGER", description: "Volume level from 0 to 100" }
+                level_percent: { type: "INTEGER" }
               },
               required: ["level_percent"]
             }
           },
           {
             name: "navigate_system",
-            description: "Execute global Android navigation actions",
+            description: "System navigation (home, back, recents, lock, notifications)",
             parameters: {
               type: "OBJECT",
               properties: {
-                action: { 
-                  type: "STRING", 
-                  enum: ["home", "back", "recents", "notifications", "quick_settings", "lock"],
-                  description: "Navigation action to trigger"
-                }
+                action: { type: "STRING", enum: ["home", "back", "recents", "notifications", "quick_settings", "lock"] }
               },
               required: ["action"]
             }
           },
           {
-            name: "open_application",
-            description: "Launch an installed Android application by name (e.g., WhatsApp, Maps, Chrome)",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                app_name: { type: "STRING", description: "Name of the app to launch" }
-              },
-              required: ["app_name"]
-            }
-          },
-          {
             name: "make_phone_call",
-            description: "Directly dial or call a phone number",
+            description: "Call a phone number",
             parameters: {
               type: "OBJECT",
               properties: {
-                phone_number: { type: "STRING", description: "Phone number digits to call" }
+                phone_number: { type: "STRING" }
               },
               required: ["phone_number"]
             }
           },
           {
             name: "send_sms",
-            description: "Send an SMS text message directly to a phone number",
+            description: "Send an SMS text message",
             parameters: {
               type: "OBJECT",
               properties: {
-                phone_number: { type: "STRING", description: "Recipient phone number" },
-                message: { type: "STRING", description: "Text message body" }
+                phone_number: { type: "STRING" },
+                message: { type: "STRING" }
               },
               required: ["phone_number", "message"]
             }
@@ -782,7 +880,7 @@ AUTONOMOUS EXECUTION PROTOCOL:
     connectBtn.addEventListener("click", async () => {
       const key = apiKeyInput.value.trim();
       if (!key) {
-        settingsSheet.classList.add("open");
+        setSettingsOpen(true);
         return;
       }
       try { localStorage.setItem("gemini_live_key", key); } catch(e) {}
@@ -857,7 +955,13 @@ AUTONOMOUS EXECUTION PROTOCOL:
       resetInactivityTimer();
       autonomousStepCount++;
 
-      // Safety guard against infinite loops
+      const actionDesc = getActionDescription(name, args);
+      setVisualState("working", `Working • Step ${autonomousStepCount}`, actionDesc);
+
+      if (window.AndroidBridge && window.AndroidBridge.showTaskProgress) {
+        window.AndroidBridge.showTaskProgress(autonomousStepCount, actionDesc);
+      }
+
       if (autonomousStepCount > 10) {
         sendToolResponse(id, "Safety limit reached. Pausing autonomous loop.");
         autonomousStepCount = 0;
@@ -868,6 +972,38 @@ AUTONOMOUS EXECUTION PROTOCOL:
       try {
         if (!window.AndroidBridge) {
           result = "Android native bridge not ready.";
+        } else if (name === "type_text") {
+          result = window.AndroidBridge.typeText(args.text || "");
+        } else if (name === "tap_element") {
+          result = window.AndroidBridge.tapElement(args.label || "");
+        } else if (name === "tap_coordinates") {
+          result = window.AndroidBridge.tapCoordinates(args.x || 0, args.y || 0);
+        } else if (name === "scroll") {
+          result = window.AndroidBridge.scroll(args.direction || "down");
+        } else if (name === "swipe") {
+          result = window.AndroidBridge.swipe(args.start_x || 0, args.start_y || 0, args.end_x || 0, args.end_y || 0, args.duration_ms || 300);
+        } else if (name === "wait_seconds") {
+          const s = Math.min(Math.max(args.seconds || 1, 0.5), 4);
+          await new Promise(r => setTimeout(r, s * 1000));
+          result = "Waited " + s + " seconds.";
+        } else if (name === "read_screen_text") {
+          result = window.AndroidBridge.readScreenText();
+        } else if (name === "capture_screen") {
+          const b64 = window.AndroidBridge.captureScreen();
+          if (b64 && b64.length > 100) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({
+                realtimeInput: {
+                  video: { data: b64, mimeType: "image/jpeg" }
+                }
+              }));
+            }
+            result = "Screenshot captured and injected into your visual feed.";
+          } else {
+            result = b64 || "Failed to capture screenshot.";
+          }
+        } else if (name === "open_application") {
+          result = window.AndroidBridge.openApp(args.app_name || "");
         } else if (name === "search_contacts") {
           result = window.AndroidBridge.searchContacts(args.query || "");
         } else if (name === "search_youtube") {
@@ -876,49 +1012,16 @@ AUTONOMOUS EXECUTION PROTOCOL:
           result = window.AndroidBridge.searchWeb(args.query || "");
         } else if (name === "open_whatsapp") {
           result = window.AndroidBridge.openWhatsAppChat(args.phone_number || "", args.message || "");
-        } else if (name === "capture_screen") {
-          const b64 = window.AndroidBridge.captureScreen();
-          if (b64 && b64.length > 100) {
-            // Push screenshot into Gemini visual feed
-            if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({
-                realtimeInput: {
-                  video: { data: b64, mimeType: "image/jpeg" }
-                }
-              }));
-            }
-            result = "Screenshot captured and injected into your visual context.";
-          } else {
-            result = b64 || "Failed to capture screenshot.";
-          }
-        } else if (name === "scroll") {
-          result = window.AndroidBridge.scroll(args.direction || "down");
-        } else if (name === "tap_coordinates") {
-          result = window.AndroidBridge.tapCoordinates(args.x || 0, args.y || 0);
-        } else if (name === "swipe") {
-          result = window.AndroidBridge.swipe(args.start_x || 0, args.start_y || 0, args.end_x || 0, args.end_y || 0, args.duration_ms || 300);
-        } else if (name === "wait_seconds") {
-          const s = Math.min(Math.max(args.seconds || 1, 0.5), 4);
-          await new Promise(r => setTimeout(r, s * 1000));
-          result = "Waited " + s + " seconds.";
         } else if (name === "toggle_flashlight") {
           result = window.AndroidBridge.toggleFlashlight(!!args.state);
         } else if (name === "set_volume") {
           result = window.AndroidBridge.setVolume(args.level_percent || 50);
         } else if (name === "navigate_system") {
           result = window.AndroidBridge.navigateSystem(args.action || "home");
-        } else if (name === "open_application") {
-          result = window.AndroidBridge.openApp(args.app_name || "");
         } else if (name === "make_phone_call") {
           result = window.AndroidBridge.makePhoneCall(args.phone_number || "");
         } else if (name === "send_sms") {
           result = window.AndroidBridge.sendSms(args.phone_number || "", args.message || "");
-        } else if (name === "read_screen_text") {
-          result = window.AndroidBridge.readScreenText();
-        } else if (name === "tap_element") {
-          result = window.AndroidBridge.tapElement(args.label || "");
-        } else if (name === "type_text") {
-          result = window.AndroidBridge.typeText(args.text || "");
         }
       } catch (err) {
         result = "Error executing tool: " + err.message;
@@ -1012,7 +1115,6 @@ AUTONOMOUS EXECUTION PROTOCOL:
 
         const channel = e.inputBuffer.getChannelData(0);
 
-        // Voice activity detector to cancel inactivity timer
         let sum = 0;
         for (let i = 0; i < channel.length; i++) sum += channel[i] * channel[i];
         if (Math.sqrt(sum / channel.length) > 0.02) {

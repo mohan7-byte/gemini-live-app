@@ -228,34 +228,45 @@ jobs:
               public void onCreate() {
                   super.onCreate();
                   instance = this;
+                  startForegroundNotification();
               }
 
               @Override
               public int onStartCommand(Intent intent, int flags, int startId) {
+                  startForegroundNotification();
                   if (intent != null && intent.hasExtra("resultCode") && intent.hasExtra("data")) {
                       this.resultCode = intent.getIntExtra("resultCode", 0);
                       this.resultData = intent.getParcelableExtra("data");
+                      initProjection();
                   }
-                  return START_NOT_STICKY;
+                  return START_STICKY;
               }
 
-              // ऑन-डिमांड: केवल शॉट लेते समय 100ms के लिए डिस्प्ले बनेगा और तुरंत रिलीज़ हो जाएगा
-              // इससे स्टेटस बार में कास्ट/मिररिंग का आइकन परमानेंट नहीं अटकेगा
+              private void initProjection() {
+                  try {
+                      if (mediaProjection == null && resultData != null) {
+                          MediaProjectionManager mpm = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+                          if (mpm != null) {
+                              mediaProjection = mpm.getMediaProjection(resultCode, resultData);
+                          }
+                      }
+                  } catch (Exception ignored) {}
+              }
+
+              // ऑन-डिमांड: जब जेमिनी फ्रेम मांगेगा, 200ms में फ्रेम लेगा और तुरंत वर्चुअल डिस्प्ले रिलीज़ कर देगा
+              // जिससे कास्ट आइकन भी स्टेटस बार में नहीं रहेगा और सर्विस कभी किल नहीं होगी
               public String captureScreenBase64() {
-                  if (resultData == null) return null;
+                  if (mediaProjection == null) {
+                      initProjection();
+                      if (mediaProjection == null) return null;
+                  }
+
                   VirtualDisplay virtualDisplay = null;
                   ImageReader imageReader = null;
                   Image image = null;
                   Bitmap bitmap = null;
 
                   try {
-                      startForegroundNotification();
-                      MediaProjectionManager mpm = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-                      if (mediaProjection == null && mpm != null) {
-                          mediaProjection = mpm.getMediaProjection(resultCode, resultData);
-                      }
-                      if (mediaProjection == null) return null;
-
                       WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
                       DisplayMetrics dm = new DisplayMetrics();
                       if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
@@ -271,8 +282,13 @@ jobs:
                           imageReader.getSurface(), null, null
                       );
 
-                      SystemClock.sleep(120); // 1 फ्रेम रेंडर होने का इंतज़ार
-                      image = imageReader.acquireLatestImage();
+                      // फ्रेम आने तक 50ms के अंतराल में 6 बार चेक करेगा (अधिकतम 300ms)
+                      for (int i = 0; i < 6; i++) {
+                          SystemClock.sleep(50);
+                          image = imageReader.acquireLatestImage();
+                          if (image != null) break;
+                      }
+
                       if (image == null) return null;
 
                       Image.Plane[] planes = image.getPlanes();
@@ -294,9 +310,8 @@ jobs:
                   } finally {
                       if (bitmap != null) bitmap.recycle();
                       if (image != null) image.close();
-                      if (virtualDisplay != null) virtualDisplay.release(); // कास्ट आइकन तुरंत गायब!
+                      if (virtualDisplay != null) virtualDisplay.release(); // कास्ट आइकन तुरंत हट जाएगा
                       if (imageReader != null) imageReader.close();
-                      stopForeground(true);
                   }
               }
 
@@ -313,7 +328,7 @@ jobs:
                       : new Notification.Builder(this);
 
                   Notification notif = b.setContentTitle("Voice Vision")
-                      .setContentText("Capturing screen")
+                      .setContentText("Screen engine ready")
                       .setSmallIcon(android.R.drawable.ic_menu_camera)
                       .build();
 
@@ -359,7 +374,6 @@ jobs:
           import android.view.WindowManager;
           import android.view.accessibility.AccessibilityEvent;
           import android.view.accessibility.AccessibilityNodeInfo;
-          import android.view.accessibility.AccessibilityWindowInfo;
           import android.widget.Toast;
           import java.util.ArrayList;
           import java.util.List;
@@ -467,22 +481,17 @@ jobs:
                   startActivity(intent);
               }
 
-              // फिजिकल हार्डवेयर टच - डेवलपर ऑप्शन में Pointer Location में साफ़ दिखेगा
               public boolean tapCoordinates(int x, int y) {
                   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
 
                   WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
                   DisplayMetrics dm = new DisplayMetrics();
-                  if (wm != null) {
-                      wm.getDefaultDisplay().getRealMetrics(dm);
-                  } else {
-                      dm = getResources().getDisplayMetrics();
-                  }
+                  if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
+                  else dm = getResources().getDisplayMetrics();
 
                   int targetX = Math.max(10, Math.min(x, dm.widthPixels - 10));
                   int targetY = Math.max(10, Math.min(y, dm.heightPixels - 10));
 
-                  // 120ms का वास्तविक मानव टच स्ट्रोक (Android टच इंजन इसे कभी ड्रॉप नहीं करेगा)
                   Path clickPath = new Path();
                   clickPath.moveTo(targetX, targetY);
                   clickPath.lineTo(targetX, targetY + 2);
@@ -491,23 +500,13 @@ jobs:
                   GestureDescription.Builder builder = new GestureDescription.Builder();
                   builder.addStroke(stroke);
 
-                  boolean dispatched = dispatchGesture(builder.build(), new GestureResultCallback() {
+                  return dispatchGesture(builder.build(), new GestureResultCallback() {
                       @Override
                       public void onCompleted(GestureDescription gestureDescription) {
                           super.onCompleted(gestureDescription);
-                          showToast("✓ Tap OK at (" + targetX + ", " + targetY + ")");
-                      }
-                      @Override
-                      public void onCancelled(GestureDescription gestureDescription) {
-                          super.onCancelled(gestureDescription);
-                          showToast("✗ Tap Cancelled by OS");
+                          showToast("✓ Tapped (" + targetX + ", " + targetY + ")");
                       }
                   }, null);
-
-                  if (!dispatched) {
-                      showToast("✗ dispatchGesture returned false");
-                  }
-                  return dispatched;
               }
 
               public boolean swipe(int startX, int startY, int endX, int endY, int durationMs) {
@@ -536,10 +535,10 @@ jobs:
                   }
               }
 
+              // तुरंत 0ms में बिना किसी देरी के पूरा स्क्रीन टेक्स्ट पढ़ेगा
               public String readScreenText() {
-                  AccessibilityNodeInfo root = getUnderlyingAppRoot();
-                  if (root == null) root = getRootInActiveWindow();
-                  if (root == null) return "No active window content detected.";
+                  AccessibilityNodeInfo root = getRootInActiveWindow();
+                  if (root == null) return "No active window detected.";
                   StringBuilder sb = new StringBuilder();
                   extractTextRecursive(root, sb, 0);
                   String result = sb.toString().trim();
@@ -562,18 +561,15 @@ jobs:
                   }
               }
 
-              // बटन के सबसे छोटे (Leaf) नोड को ढूंढकर उसके सटीक सेंटर पर टच करना
               public boolean tapElement(String label) {
                   String target = label.toLowerCase().trim();
-                  AccessibilityNodeInfo root = getUnderlyingAppRoot();
-                  if (root == null) root = getRootInActiveWindow();
+                  AccessibilityNodeInfo root = getRootInActiveWindow();
                   if (root == null) return false;
 
                   List<AccessibilityNodeInfo> matches = new ArrayList<>();
                   collectMatches(root, target, matches, 0);
                   if (matches.isEmpty()) return false;
 
-                  // सबसे छोटे बाउंड्स वाले नोड को चुनें ताकि पूरा कंटेनर नहीं बल्कि असली बटन दबे
                   AccessibilityNodeInfo bestNode = null;
                   int minArea = Integer.MAX_VALUE;
                   Rect r = new Rect();
@@ -605,25 +601,41 @@ jobs:
                   }
               }
 
-              // कर्सर सुरक्षा: अगर कर्सर पहले से ब्लिंक कर रहा है, तो सेंटर में टैप नहीं करेगा, सीधे कर्सर पर पेस्ट करेगा
+              // सटीक कर्सर टाइपिंग: अगर कर्सर पहले से है, तो बिना कोई दूसरा टैप किए सीधे वहीं टाइप करेगा
               public boolean typeText(String text) {
-                  AccessibilityNodeInfo focused = findFocusedInput();
+                  AccessibilityNodeInfo root = getRootInActiveWindow();
+                  if (root == null) return false;
+
+                  // 1. अगर कर्सर पहले से ब्लिंक कर रहा है तो सीधे वहीं पेस्ट करें
+                  AccessibilityNodeInfo focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+                  if (focused == null) focused = findFocusedNode(root, 0);
+
                   if (focused != null) {
                       return pasteIntoNode(focused, text);
                   }
 
-                  // केवल तभी टैप करें जब कोई कर्सर पहले से मौजूद न हो
-                  AccessibilityNodeInfo target = findEditableNode();
-                  if (target != null) {
+                  // 2. अगर कर्सर नहीं है, तो पहले एडिट बॉक्स पर टैप करके कर्सर लाएगा, फिर पेस्ट करेगा
+                  AccessibilityNodeInfo editable = findFirstEditable(root, 0);
+                  if (editable != null) {
                       Rect rect = new Rect();
-                      target.getBoundsInScreen(rect);
+                      editable.getBoundsInScreen(rect);
                       if (rect.width() > 0 && rect.height() > 0) {
                           tapCoordinates(rect.centerX(), rect.centerY());
                           SystemClock.sleep(150);
                       }
-                      return pasteIntoNode(target, text);
+                      return pasteIntoNode(editable, text);
                   }
                   return false;
+              }
+
+              private AccessibilityNodeInfo findFocusedNode(AccessibilityNodeInfo node, int depth) {
+                  if (node == null || depth > 25) return null;
+                  if (node.isFocused()) return node;
+                  for (int i = 0; i < node.getChildCount(); i++) {
+                      AccessibilityNodeInfo res = findFocusedNode(node.getChild(i), depth + 1);
+                      if (res != null) return res;
+                  }
+                  return null;
               }
 
               private boolean pasteIntoNode(AccessibilityNodeInfo node, String text) {
@@ -641,52 +653,8 @@ jobs:
                       args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text);
                       pasted = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
                   }
+                  if (pasted) showToast("✓ Typed text");
                   return pasted;
-              }
-
-              private AccessibilityNodeInfo findFocusedInput() {
-                  List<AccessibilityWindowInfo> windows = getWindows();
-                  if (windows != null) {
-                      for (AccessibilityWindowInfo w : windows) {
-                          AccessibilityNodeInfo root = w.getRoot();
-                          if (root == null) continue;
-                          CharSequence pkg = root.getPackageName();
-                          if (pkg != null && pkg.toString().equals(getPackageName())) continue;
-                          AccessibilityNodeInfo focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
-                          if (focused != null) return focused;
-                      }
-                  }
-                  return null;
-              }
-
-              private AccessibilityNodeInfo findEditableNode() {
-                  List<AccessibilityWindowInfo> windows = getWindows();
-                  if (windows != null) {
-                      for (AccessibilityWindowInfo w : windows) {
-                          AccessibilityNodeInfo root = w.getRoot();
-                          if (root == null) continue;
-                          CharSequence pkg = root.getPackageName();
-                          if (pkg != null && pkg.toString().equals(getPackageName())) continue;
-                          AccessibilityNodeInfo editable = findFirstEditable(root, 0);
-                          if (editable != null) return editable;
-                      }
-                  }
-                  return null;
-              }
-
-              private AccessibilityNodeInfo getUnderlyingAppRoot() {
-                  List<AccessibilityWindowInfo> windows = getWindows();
-                  if (windows != null) {
-                      for (AccessibilityWindowInfo w : windows) {
-                          AccessibilityNodeInfo root = w.getRoot();
-                          if (root == null) continue;
-                          CharSequence pkg = root.getPackageName();
-                          if (pkg != null && !pkg.toString().equals(getPackageName())) {
-                              return root;
-                          }
-                      }
-                  }
-                  return null;
               }
 
               private AccessibilityNodeInfo findFirstEditable(AccessibilityNodeInfo node, int depth) {
@@ -775,6 +743,7 @@ jobs:
                   }
 
                   projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+                                  if (ScreenCaptureService.instance == null) requestScreenCapture();
 
                   webView = new WebView(this);
                   webView.setBackgroundColor(Color.TRANSPARENT);

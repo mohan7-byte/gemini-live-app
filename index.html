@@ -32,7 +32,7 @@
       overflow: hidden;
     }
 
-    /* Tap outside pill minimizes to background */
+    /* Tap outside pill minimizes window */
     .touch-backdrop {
       position: absolute;
       inset: 0;
@@ -96,9 +96,7 @@
       cursor: pointer;
     }
 
-    /* ------------------------------------------------------------- */
-    /* FLOATING CAPSULE                                              */
-    /* ------------------------------------------------------------- */
+    /* Floating Capsule */
     .capsule {
       pointer-events: auto;
       display: flex;
@@ -305,6 +303,22 @@
     input:checked + .slider { background-color: #7c3aed; }
     input:checked + .slider:before { transform: translateX(19px); }
 
+    .action-card-btn {
+      width: 100%;
+      background: rgba(168, 85, 247, 0.12);
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      color: #e9d5ff;
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 10px 0 14px 0;
+      cursor: pointer;
+      text-align: left;
+    }
+    .action-card-btn:active { background: rgba(168, 85, 247, 0.22); }
+
     .hidden { display: none !important; }
   </style>
 </head>
@@ -336,30 +350,26 @@
         </button>
 
         <div class="action-group hidden" id="liveControls">
-          <!-- In-Call Camera Toggle -->
           <button class="icon-btn" id="toggleCameraBtn" title="Camera Vision">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
           </button>
 
-          <!-- Mic Mute Button -->
           <button class="icon-btn" id="muteBtn" title="Mute Mic">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
           </button>
 
-          <!-- End Call Button -->
           <button class="icon-btn btn-end" id="disconnectBtn" title="End Call">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
           </button>
         </div>
 
         <button class="icon-btn" id="openSettingsBtn" title="Settings">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Settings Drawer -->
   <div class="sheet" id="settingsSheet">
     <div class="sheet-handle"></div>
     <div class="sheet-head">
@@ -367,12 +377,19 @@
       <button class="icon-btn" id="closeSettingsBtn" style="border:none;">✕</button>
     </div>
 
+    <div class="action-card-btn" id="openAccessibilitySettingsBtn">
+      <div>
+        <div style="font-weight: 600; font-size: 0.85rem;">⚡ Double-Click Volume Setup</div>
+        <div style="font-size: 0.72rem; opacity: 0.8; margin-top: 2px;">Tap to open Accessibility & turn on Voice trigger</div>
+      </div>
+      <span style="font-size: 1.2rem;">➔</span>
+    </div>
+
     <div class="field">
       <label for="apiKey">Gemini API Key</label>
       <input type="password" id="apiKey" placeholder="AIzaSy..." />
     </div>
 
-    <!-- Auto-Connect on Launch -->
     <div class="toggle-row">
       <div>
         <div class="toggle-label">Auto-Connect on Launch</div>
@@ -384,19 +401,6 @@
       </label>
     </div>
 
-    <!-- Google Search Grounding (Disabled by default due to preview model WebSocket limitation) -->
-    <div class="toggle-row">
-      <div>
-        <div class="toggle-label">Google Search Grounding (Experimental)</div>
-        <div class="toggle-desc">Search web in real-time (May cause handshake drop on preview tier)</div>
-      </div>
-      <label class="switch">
-        <input type="checkbox" id="googleSearchToggle" />
-        <span class="slider"></span>
-      </label>
-    </div>
-
-    <!-- Echo Guard -->
     <div class="toggle-row">
       <div>
         <div class="toggle-label">Speaker Echo Guard</div>
@@ -408,7 +412,6 @@
       </label>
     </div>
 
-    <!-- Bluetooth Priority -->
     <div class="toggle-row">
       <div>
         <div class="toggle-label">Bluetooth Priority Mode</div>
@@ -420,7 +423,6 @@
       </label>
     </div>
 
-    <!-- Assistant Instructions (Fixed Persistence) -->
     <div class="field" style="margin-top: 14px;">
       <label for="systemPrompt">Assistant Instructions</label>
       <textarea id="systemPrompt" rows="2" placeholder="Leave empty for raw default..."></textarea>
@@ -458,7 +460,6 @@
     let nextAudioTime = 0;
     let activeSources = [];
 
-    // Camera Variables
     let cameraStream = null;
     let cameraInterval = null;
     let isCameraActive = false;
@@ -471,12 +472,10 @@
     let isModelSpeaking = false;
     let echoCooldownTimer = null;
 
-    // DOM Elements
     const apiKeyInput = document.getElementById("apiKey");
     const modelSelect = document.getElementById("modelSelect");
     const voiceSelect = document.getElementById("voiceSelect");
     const systemPromptInput = document.getElementById("systemPrompt");
-    const googleSearchToggle = document.getElementById("googleSearchToggle");
     const autoConnectToggle = document.getElementById("autoConnectToggle");
     const echoGuardToggle = document.getElementById("echoGuardToggle");
     const btPriorityToggle = document.getElementById("btPriorityToggle");
@@ -496,7 +495,13 @@
     document.getElementById("openSettingsBtn").onclick = () => settingsSheet.classList.toggle("open");
     document.getElementById("closeSettingsBtn").onclick = () => settingsSheet.classList.remove("open");
 
-    // Tap outside minimizes window without killing background call
+    // Open phone Accessibility settings directly
+    document.getElementById("openAccessibilitySettingsBtn").onclick = () => {
+      if (window.AndroidBridge && window.AndroidBridge.openAccessibilitySettings) {
+        window.AndroidBridge.openAccessibilitySettings();
+      }
+    };
+
     dismissBackdrop.onclick = () => {
       if (settingsSheet.classList.contains("open")) {
         settingsSheet.classList.remove("open");
@@ -507,7 +512,6 @@
       }
     };
 
-    // Fix: Persistent instruction tracking
     try {
       if (localStorage.getItem("gemini_live_key")) apiKeyInput.value = localStorage.getItem("gemini_live_key");
       if (localStorage.getItem("gemini_live_voice")) voiceSelect.value = localStorage.getItem("gemini_live_voice");
@@ -519,20 +523,17 @@
         systemPromptInput.value = "You are a concise, lightning-fast personal AI assistant. Keep responses natural, direct, conversational, and 1 to 2 sentences.";
       }
 
-      if (localStorage.getItem("gemini_live_search") !== null) googleSearchToggle.checked = localStorage.getItem("gemini_live_search") === "true";
       if (localStorage.getItem("gemini_live_auto_connect") !== null) autoConnectToggle.checked = localStorage.getItem("gemini_live_auto_connect") === "true";
       if (localStorage.getItem("gemini_live_echo_guard") !== null) echoGuardToggle.checked = localStorage.getItem("gemini_live_echo_guard") === "true";
       if (localStorage.getItem("gemini_live_bt_priority") !== null) btPriorityToggle.checked = localStorage.getItem("gemini_live_bt_priority") === "true";
     } catch(e) {}
 
-    // Auto-save settings
     voiceSelect.onchange = () => localStorage.setItem("gemini_live_voice", voiceSelect.value);
     modelSelect.onchange = () => localStorage.setItem("gemini_live_model", modelSelect.value);
     systemPromptInput.addEventListener("input", () => {
       localStorage.setItem("gemini_live_has_saved_prompt", "true");
       localStorage.setItem("gemini_live_system_prompt", systemPromptInput.value);
     });
-    googleSearchToggle.onchange = () => localStorage.setItem("gemini_live_search", googleSearchToggle.checked);
     autoConnectToggle.onchange = () => localStorage.setItem("gemini_live_auto_connect", autoConnectToggle.checked);
     echoGuardToggle.onchange = () => localStorage.setItem("gemini_live_echo_guard", echoGuardToggle.checked);
     btPriorityToggle.onchange = () => localStorage.setItem("gemini_live_bt_priority", btPriorityToggle.checked);
@@ -543,7 +544,6 @@
       capsuleSub.innerText = sub;
     }
 
-    // Connect & Start Voice Session
     connectBtn.addEventListener("click", async () => {
       const key = apiKeyInput.value.trim();
       if (!key) {
@@ -592,8 +592,7 @@
                 }
               }
             },
-            ...(promptText ? { systemInstruction: { parts: [{ text: promptText }] } } : {}),
-            ...(googleSearchToggle.checked ? { tools: [{ googleSearch: {} }] } : {})
+            ...(promptText ? { systemInstruction: { parts: [{ text: promptText }] } } : {})
           }
         };
 
@@ -614,15 +613,9 @@
         } catch(e) {}
       };
 
-      ws.onclose = (evt) => {
-        cleanUpSession();
-        if (evt.code === 1007 && googleSearchToggle.checked) {
-          setVisualState("idle", "Error 1007", "Disable Google Search");
-        }
-      };
+      ws.onclose = () => cleanUpSession();
     });
 
-    // In-Call Live Camera Vision Toggle
     toggleCameraBtn.addEventListener("click", async () => {
       if (!isCameraActive) {
         await startCameraVision();
@@ -661,13 +654,10 @@
       await startCameraVision();
     };
 
-    // FIXED: RealtimeInput.video format with camera readiness verification
     function startCameraStreaming() {
       if (cameraInterval) clearInterval(cameraInterval);
       cameraInterval = setInterval(() => {
         if (!ws || ws.readyState !== WebSocket.OPEN || !cameraStream || !isCameraActive) return;
-
-        // Ensure video is actively playing and has dimensions before grabbing frame
         if (cameraVideo.readyState < 2 || cameraVideo.videoWidth === 0) return;
 
         offscreenCtx.drawImage(cameraVideo, 0, 0, 320, 240);
@@ -676,7 +666,6 @@
         if (parts.length < 2) return;
         const base64Data = parts[1].trim();
 
-        // Conforms to the official Live API WebSocket video frame specification
         const frame = {
           realtimeInput: {
             video: {
@@ -747,7 +736,6 @@
       if (msg.serverContent.turnComplete) scheduleTurnEnd();
     }
 
-    // FIXED: AudioContext is resumed if suspended while running in background
     function playPCM(base64Audio) {
       setVisualState("speaking", "Speaking", "Gemini...");
 
@@ -870,6 +858,13 @@
       liveControls.classList.add("hidden");
       setVisualState("idle", "Voice", "Ready");
     }
+
+    // Function called by native onNewIntent when triggered by Volume Down double-click
+    window.autoConnectOnWake = function() {
+      if (autoConnectToggle.checked && apiKeyInput.value.trim() && (!ws || ws.readyState !== WebSocket.OPEN)) {
+        connectBtn.click();
+      }
+    };
 
     window.addEventListener("DOMContentLoaded", () => {
       if (autoConnectToggle.checked && apiKeyInput.value.trim()) {

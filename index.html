@@ -6,14 +6,14 @@
   <title>Voice</title>
   <style>
     :root {
-      --pill-bg: rgba(14, 16, 26, 0.94);
-      --pill-border: rgba(255, 255, 255, 0.14);
-      --card-bg: rgba(18, 20, 32, 0.96);
+      --pill-bg: rgba(13, 16, 26, 0.94);
+      --pill-border: rgba(255, 255, 255, 0.12);
+      --sheet-bg: rgba(18, 20, 32, 0.98);
       --text: #f8fafc;
       --text-dim: #94a3b8;
       --danger: #ef4444;
-      --accent-purple: #c084fc;
-      --accent-amber: #fbbf24;
+      --purple: #c084fc;
+      --amber: #fbbf24;
     }
 
     * {
@@ -25,7 +25,7 @@
       user-select: none;
     }
 
-    /* Entire window background is completely transparent */
+    /* Transparent native window */
     html, body {
       background: transparent !important;
       height: 100%;
@@ -33,16 +33,16 @@
       overflow: hidden;
     }
 
-    /* Full-screen touch layer: Tapping empty area minimizes to background */
-    .backdrop-dismiss {
+    /* Tapping outside minimizes app to background */
+    .touch-backdrop {
       position: absolute;
       inset: 0;
       z-index: 1;
       background: transparent;
     }
 
-    /* Floating Shell anchored at bottom center */
-    .floating-container {
+    /* Floating Capsule Dock */
+    .dock-container {
       position: fixed;
       bottom: calc(env(safe-area-inset-bottom, 16px) + 20px);
       left: 0;
@@ -52,21 +52,27 @@
       align-items: center;
       justify-content: flex-end;
       z-index: 10;
-      pointer-events: none; /* Let touches outside pass through to backdrop */
+      pointer-events: none;
     }
 
-    /* Mini Camera Vision Box (Floating above capsule when active) */
+    /* Mini Live Camera Viewport (Slides above capsule when camera is toggled) */
     .camera-float {
       pointer-events: auto;
-      width: 130px;
-      height: 98px;
-      border-radius: 18px;
+      width: 140px;
+      height: 105px;
+      border-radius: 20px;
       overflow: hidden;
-      border: 1.5px solid rgba(255, 255, 255, 0.2);
+      border: 1.5px solid rgba(255, 255, 255, 0.22);
       background: #000;
       margin-bottom: 12px;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7);
       position: relative;
+      animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.8) translateY(10px); opacity: 0; }
+      to { transform: scale(1) translateY(0); opacity: 1; }
     }
 
     .camera-float video {
@@ -75,72 +81,72 @@
       object-fit: cover;
     }
 
-    .btn-flip-cam {
+    .cam-flip-btn {
       position: absolute;
-      top: 5px;
-      right: 5px;
+      top: 6px;
+      right: 6px;
       width: 26px;
       height: 26px;
       border-radius: 50%;
       background: rgba(0, 0, 0, 0.65);
-      border: 1px solid rgba(255, 255, 255, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.25);
       color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 0.75rem;
       cursor: pointer;
-      font-size: 0.8rem;
     }
 
     /* ------------------------------------------------------------- */
-    /* COMPACT FLOATING CAPSULE (The Core Assistant Island)          */
+    /* THE COMPACT FLOATING CAPSULE                                  */
     /* ------------------------------------------------------------- */
     .capsule {
       pointer-events: auto;
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 9px 14px 9px 12px;
+      padding: 8px 14px 8px 10px;
       background: var(--pill-bg);
       border: 1px solid var(--pill-border);
       border-radius: 999px;
       box-shadow: 
-        0 14px 40px rgba(0, 0, 0, 0.65),
-        0 2px 10px rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(32px);
-      -webkit-backdrop-filter: blur(32px);
-      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease;
-      max-width: 90vw;
+        0 20px 45px rgba(0, 0, 0, 0.75),
+        0 2px 8px rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(36px);
+      -webkit-backdrop-filter: blur(36px);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      max-width: 92vw;
     }
 
-    /* Compact Living Orb */
-    .orb-mini-stage {
+    /* Dynamic Micro Orb */
+    .orb-slot {
       position: relative;
-      width: 44px;
-      height: 44px;
+      width: 42px;
+      height: 42px;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
     }
 
-    .orb-mini-glow {
+    .orb-glow {
       position: absolute;
       width: 100%;
       height: 100%;
       border-radius: 50%;
-      filter: blur(14px);
+      filter: blur(12px);
       opacity: 0.5;
-      transition: all 0.6s ease;
+      transition: all 0.5s ease;
     }
 
-    .orb-mini-core {
+    .orb-core {
       position: relative;
-      width: 26px;
-      height: 26px;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
-      box-shadow: inset 0 2px 6px rgba(255,255,255,0.45);
-      transition: all 0.5s ease;
+      box-shadow: inset 0 2px 6px rgba(255,255,255,0.5);
+      transition: all 0.4s ease;
       animation: coreFloat 3.5s ease-in-out infinite alternate;
     }
 
@@ -149,38 +155,38 @@
       100% { transform: scale(1.04); }
     }
 
-    /* States */
-    .state-idle .orb-mini-glow { background: rgba(99, 102, 241, 0.4); }
-    .state-idle .orb-mini-core { background: radial-gradient(circle at 35% 35%, #a5b4fc 0%, #4338ca 100%); }
+    /* Capsule Status Themes */
+    .state-idle .orb-glow { background: rgba(99, 102, 241, 0.35); }
+    .state-idle .orb-core { background: radial-gradient(circle at 35% 35%, #a5b4fc 0%, #4338ca 100%); }
 
-    .state-listening .orb-mini-glow {
-      background: rgba(168, 85, 247, 0.95);
+    .state-listening .orb-glow {
+      background: rgba(168, 85, 247, 0.9);
       opacity: 0.9;
       transform: scale(1.25);
     }
-    .state-listening .orb-mini-core {
+    .state-listening .orb-core {
       background: radial-gradient(circle at 35% 35%, #f3e8ff 0%, #a855f7 100%);
-      box-shadow: 0 0 16px rgba(168, 85, 247, 0.8), inset 0 2px 8px #fff;
+      box-shadow: 0 0 14px rgba(168, 85, 247, 0.8), inset 0 2px 6px #fff;
     }
 
-    .state-speaking .orb-mini-glow {
+    .state-speaking .orb-glow {
       background: rgba(251, 191, 36, 0.95);
       opacity: 0.95;
       transform: scale(1.35);
     }
-    .state-speaking .orb-mini-core {
+    .state-speaking .orb-core {
       background: radial-gradient(circle at 35% 35%, #fffbeb 0%, #f59e0b 50%, #e11d48 100%);
-      box-shadow: 0 0 20px rgba(251, 191, 36, 0.85), inset 0 2px 8px #fff;
+      box-shadow: 0 0 18px rgba(251, 191, 36, 0.85), inset 0 2px 6px #fff;
     }
 
-    /* Assistant Status Text */
-    .capsule-info {
+    /* Status Text */
+    .capsule-text {
       display: flex;
       flex-direction: column;
-      min-width: 80px;
+      min-width: 78px;
     }
 
-    .capsule-title {
+    .capsule-status {
       font-size: 0.82rem;
       font-weight: 600;
       color: var(--text);
@@ -194,16 +200,16 @@
       white-space: nowrap;
     }
 
-    /* Button Controls inside Capsule */
-    .capsule-actions {
+    /* Actions Hub inside Capsule */
+    .action-group {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 7px;
     }
 
-    .icon-pill-btn {
-      width: 38px;
-      height: 38px;
+    .icon-btn {
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
       border: 1px solid rgba(255, 255, 255, 0.1);
       background: rgba(255, 255, 255, 0.08);
@@ -216,33 +222,39 @@
       flex-shrink: 0;
     }
 
-    .icon-pill-btn:active {
+    .icon-btn:active {
       transform: scale(0.92);
-      background: rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.16);
     }
 
-    .btn-end-call {
-      background: rgba(239, 68, 68, 0.88);
-      color: #fff;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+    .icon-btn.active {
+      background: rgba(168, 85, 247, 0.3);
+      border-color: rgba(168, 85, 247, 0.6);
+      color: #e9d5ff;
     }
 
-    .btn-end-call:active {
-      background: var(--danger);
-    }
-
-    .icon-pill-btn.muted {
+    .icon-btn.muted {
       background: rgba(239, 68, 68, 0.25);
       color: #fca5a5;
       border-color: rgba(239, 68, 68, 0.4);
     }
 
-    .btn-connect-single {
+    .btn-end {
+      background: rgba(239, 68, 68, 0.88);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-end:active {
+      background: var(--danger);
+    }
+
+    .btn-start {
       background: linear-gradient(135deg, #4338ca, #2563eb);
       color: #fff;
-      border: 1px solid rgba(255,255,255,0.25);
+      border: 1px solid rgba(255, 255, 255, 0.25);
       padding: 0 16px;
-      height: 38px;
+      height: 36px;
       border-radius: 999px;
       font-size: 0.82rem;
       font-weight: 600;
@@ -252,34 +264,34 @@
       cursor: pointer;
     }
 
-    /* Slide-Up Settings Sheet */
+    /* Settings Slide-Up Drawer */
     .sheet {
       pointer-events: auto;
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
-      background: var(--card-bg);
-      border-top: 1px solid var(--pill-border);
+      background: var(--sheet-bg);
+      border-top: 1px solid rgba(255, 255, 255, 0.14);
       border-radius: 28px 28px 0 0;
       backdrop-filter: blur(40px);
       -webkit-backdrop-filter: blur(40px);
-      padding: 18px 24px calc(env(safe-area-inset-bottom, 16px) + 20px) 24px;
+      padding: 16px 22px calc(env(safe-area-inset-bottom, 16px) + 18px) 22px;
       transform: translateY(102%);
       transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
       z-index: 30;
-      max-height: 80vh;
+      max-height: 82vh;
       overflow-y: auto;
       color: var(--text);
     }
 
     .sheet.open { transform: translateY(0); }
-    .sheet-handle { width: 40px; height: 4px; background: rgba(255, 255, 255, 0.25); border-radius: 99px; margin: 0 auto 16px auto; }
+    .sheet-handle { width: 38px; height: 4px; background: rgba(255, 255, 255, 0.25); border-radius: 99px; margin: 0 auto 14px auto; }
     .sheet-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
     .sheet-title { font-size: 0.95rem; font-weight: 600; }
 
     .field { margin-bottom: 12px; }
-    .field label { display: block; font-size: 0.72rem; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .field label { display: block; font-size: 0.72rem; color: var(--text-dim); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.05em; }
     .field input, .field select, .field textarea {
       width: 100%;
       background: rgba(0, 0, 0, 0.5);
@@ -307,59 +319,69 @@
 </head>
 <body class="state-idle">
 
-  <!-- Tap anywhere outside to minimize to background -->
-  <div class="backdrop-dismiss" id="dismissBackdrop"></div>
+  <!-- Tapping empty area calls native minimize (call continues in background) -->
+  <div class="touch-backdrop" id="dismissBackdrop"></div>
 
-  <!-- Floating Hub -->
-  <div class="floating-container">
-    <!-- Camera Viewport Preview (Only visible when toggled ON) -->
+  <div class="dock-container">
+    <!-- Camera Viewport Preview -->
     <div class="camera-float hidden" id="cameraBox">
       <video id="cameraVideo" autoplay playsinline muted></video>
-      <button class="btn-flip-cam" id="flipCameraBtn">⇄</button>
+      <button class="cam-flip-btn" id="flipCameraBtn">⇄</button>
     </div>
 
-    <!-- Small Floating Capsule -->
+    <!-- Floating Capsule -->
     <div class="capsule" id="capsule">
-      <div class="orb-mini-stage">
-        <div class="orb-mini-glow"></div>
-        <div class="orb-mini-core"></div>
+      <div class="orb-slot">
+        <div class="orb-glow"></div>
+        <div class="orb-core"></div>
       </div>
 
-      <div class="capsule-info">
-        <div class="capsule-title" id="capsuleTitle">Voice</div>
+      <div class="capsule-text">
+        <div class="capsule-status" id="capsuleStatus">Voice</div>
         <div class="capsule-sub" id="capsuleSub">Ready</div>
       </div>
 
-      <!-- Action Buttons -->
-      <div class="capsule-actions">
-        <button class="btn-connect-single" id="connectBtn">
+      <div class="action-group">
+        <!-- Start Button -->
+        <button class="btn-start" id="connectBtn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
           Start
         </button>
 
-        <div class="capsule-actions hidden" id="liveActions">
-          <button class="icon-pill-btn" id="muteBtn" title="Mute">
+        <!-- Live Controls -->
+        <div class="action-group hidden" id="liveControls">
+          <!-- In-Call Camera Toggle Button -->
+          <button class="icon-btn" id="toggleCameraBtn" title="Camera Vision">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+          </button>
+
+          <!-- Mic Mute Button -->
+          <button class="icon-btn" id="muteBtn" title="Mute Mic">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
           </button>
-          <button class="icon-pill-btn btn-end-call" id="disconnectBtn" title="End Call">
+
+          <!-- End Call Button -->
+          <button class="icon-btn btn-end" id="disconnectBtn" title="End Call">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
           </button>
         </div>
 
-        <button class="icon-pill-btn" id="openSettingsBtn" title="Settings">
+        <!-- Settings Gear -->
+        <button class="icon-btn" id="openSettingsBtn" title="Settings">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Settings Drawer -->
+  <!-- Settings Sheet -->
   <div class="sheet" id="settingsSheet">
     <div class="sheet-handle"></div>
     <div class="sheet-head">
       <div class="sheet-title">Configuration</div>
-      <button class="icon-pill-btn" id="closeSettingsBtn" style="border:none;">✕</button>
+      <button class="icon-btn" id="closeSettingsBtn" style="border:none;">✕</button>
     </div>
+
     <div class="field">
       <label for="apiKey">Gemini API Key</label>
       <input type="password" id="apiKey" placeholder="AIzaSy..." />
@@ -369,22 +391,10 @@
     <div class="toggle-row">
       <div>
         <div class="toggle-label">Google Search Grounding</div>
-        <div class="toggle-desc">Search web in real-time for live/current information</div>
+        <div class="toggle-desc">Search real-time web for live/current facts</div>
       </div>
       <label class="switch">
-        <input type="checkbox" id="googleSearchToggle" checked />
-        <span class="slider"></span>
-      </label>
-    </div>
-
-    <!-- Camera Vision Toggle -->
-    <div class="toggle-row">
-      <div>
-        <div class="toggle-label">Camera Vision Mode</div>
-        <div class="toggle-desc">Send 1 FPS low-res snapshot to Gemini</div>
-      </div>
-      <label class="switch">
-        <input type="checkbox" id="cameraVisionToggle" />
+        <input type="checkbox" id="googleSearchToggle" />
         <span class="slider"></span>
       </label>
     </div>
@@ -425,10 +435,10 @@
       </label>
     </div>
 
-    <!-- Persona Prompt -->
+    <!-- Persona Prompt (Empty stays empty) -->
     <div class="field" style="margin-top: 14px;">
-      <label for="systemPrompt">Assistant Instructions</label>
-      <textarea id="systemPrompt" rows="2">You are a concise, lightning-fast personal voice assistant. Respond directly in 1 or 2 sentences.</textarea>
+      <label for="systemPrompt">Assistant Persona / Instructions</label>
+      <textarea id="systemPrompt" rows="2" placeholder="Leave empty for raw model default..."></textarea>
     </div>
 
     <div class="field">
@@ -463,9 +473,10 @@
     let nextAudioTime = 0;
     let activeSources = [];
 
-    // Camera Vision Variables
+    // Camera Variables
     let cameraStream = null;
     let cameraInterval = null;
+    let isCameraActive = false;
     let currentFacingMode = "environment";
     const cameraBox = document.getElementById("cameraBox");
     const cameraVideo = document.getElementById("cameraVideo");
@@ -482,25 +493,25 @@
     const systemPromptInput = document.getElementById("systemPrompt");
     const googleSearchToggle = document.getElementById("googleSearchToggle");
     const autoConnectToggle = document.getElementById("autoConnectToggle");
-    const cameraVisionToggle = document.getElementById("cameraVisionToggle");
     const echoGuardToggle = document.getElementById("echoGuardToggle");
     const btPriorityToggle = document.getElementById("btPriorityToggle");
 
     const connectBtn = document.getElementById("connectBtn");
     const disconnectBtn = document.getElementById("disconnectBtn");
     const muteBtn = document.getElementById("muteBtn");
-    const liveActions = document.getElementById("liveActions");
+    const toggleCameraBtn = document.getElementById("toggleCameraBtn");
     const flipCameraBtn = document.getElementById("flipCameraBtn");
+    const liveControls = document.getElementById("liveControls");
     const dismissBackdrop = document.getElementById("dismissBackdrop");
 
-    const capsuleTitle = document.getElementById("capsuleTitle");
+    const capsuleStatus = document.getElementById("capsuleStatus");
     const capsuleSub = document.getElementById("capsuleSub");
     const settingsSheet = document.getElementById("settingsSheet");
 
     document.getElementById("openSettingsBtn").onclick = () => settingsSheet.classList.toggle("open");
     document.getElementById("closeSettingsBtn").onclick = () => settingsSheet.classList.remove("open");
 
-    // Tapping outside capsule minimizes app to background without killing call
+    // Tap outside minimizes to background (Call continues uninterrupted)
     dismissBackdrop.onclick = () => {
       if (settingsSheet.classList.contains("open")) {
         settingsSheet.classList.remove("open");
@@ -511,32 +522,37 @@
       }
     };
 
-    // Persistent storage
+    // Load persisted settings (Proper empty-string handling)
     try {
       if (localStorage.getItem("gemini_live_key")) apiKeyInput.value = localStorage.getItem("gemini_live_key");
       if (localStorage.getItem("gemini_live_voice")) voiceSelect.value = localStorage.getItem("gemini_live_voice");
       if (localStorage.getItem("gemini_live_model")) modelSelect.value = localStorage.getItem("gemini_live_model");
-      if (localStorage.getItem("gemini_live_system_prompt")) systemPromptInput.value = localStorage.getItem("gemini_live_system_prompt");
+      
+      // Fix: If saved as empty string, it respects it and does not revert
+      if (localStorage.getItem("gemini_live_system_prompt") !== null) {
+        systemPromptInput.value = localStorage.getItem("gemini_live_system_prompt");
+      } else {
+        systemPromptInput.value = "You are a concise, lightning-fast personal AI assistant. Keep responses natural, direct, conversational, and 1 to 2 sentences.";
+      }
+
       if (localStorage.getItem("gemini_live_search") !== null) googleSearchToggle.checked = localStorage.getItem("gemini_live_search") === "true";
       if (localStorage.getItem("gemini_live_auto_connect") !== null) autoConnectToggle.checked = localStorage.getItem("gemini_live_auto_connect") === "true";
-      if (localStorage.getItem("gemini_live_camera_vision") !== null) cameraVisionToggle.checked = localStorage.getItem("gemini_live_camera_vision") === "true";
       if (localStorage.getItem("gemini_live_echo_guard") !== null) echoGuardToggle.checked = localStorage.getItem("gemini_live_echo_guard") === "true";
       if (localStorage.getItem("gemini_live_bt_priority") !== null) btPriorityToggle.checked = localStorage.getItem("gemini_live_bt_priority") === "true";
     } catch(e) {}
 
-    // Auto-save settings
+    // Save on change
     voiceSelect.onchange = () => localStorage.setItem("gemini_live_voice", voiceSelect.value);
     modelSelect.onchange = () => localStorage.setItem("gemini_live_model", modelSelect.value);
-    systemPromptInput.onchange = () => localStorage.setItem("gemini_live_system_prompt", systemPromptInput.value);
+    systemPromptInput.oninput = () => localStorage.setItem("gemini_live_system_prompt", systemPromptInput.value);
     googleSearchToggle.onchange = () => localStorage.setItem("gemini_live_search", googleSearchToggle.checked);
     autoConnectToggle.onchange = () => localStorage.setItem("gemini_live_auto_connect", autoConnectToggle.checked);
-    cameraVisionToggle.onchange = () => localStorage.setItem("gemini_live_camera_vision", cameraVisionToggle.checked);
     echoGuardToggle.onchange = () => localStorage.setItem("gemini_live_echo_guard", echoGuardToggle.checked);
     btPriorityToggle.onchange = () => localStorage.setItem("gemini_live_bt_priority", btPriorityToggle.checked);
 
-    function setVisualState(state, title, sub) {
+    function setVisualState(state, status, sub) {
       document.body.className = `state-${state}`;
-      capsuleTitle.innerText = title;
+      capsuleStatus.innerText = status;
       capsuleSub.innerText = sub;
     }
 
@@ -563,10 +579,6 @@
         return;
       }
 
-      if (cameraVisionToggle.checked) {
-        await startCameraVision();
-      }
-
       const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
       audioCtx = new AudioCtxClass({ sampleRate: 24000 });
       if (audioCtx.state === "suspended") await audioCtx.resume();
@@ -581,6 +593,7 @@
       }
 
       ws.onopen = () => {
+        const promptText = systemPromptInput.value.trim();
         const setupPayload = {
           setup: {
             model: chosenModel,
@@ -592,9 +605,7 @@
                 }
               }
             },
-            systemInstruction: {
-              parts: [{ text: systemPromptInput.value.trim() }]
-            },
+            ...(promptText ? { systemInstruction: { parts: [{ text: promptText }] } } : {}),
             ...(googleSearchToggle.checked ? { tools: [{ googleSearch: {} }] } : {})
           }
         };
@@ -602,12 +613,8 @@
         ws.send(JSON.stringify(setupPayload));
         startMicCapture();
 
-        if (cameraVisionToggle.checked) {
-          startCameraStreaming();
-        }
-
         connectBtn.classList.add("hidden");
-        liveActions.classList.remove("hidden");
+        liveControls.classList.remove("hidden");
         setVisualState("listening", "Listening", "Go ahead");
       };
 
@@ -623,6 +630,15 @@
       ws.onclose = () => cleanUpSession();
     });
 
+    // In-Call Live Camera Vision Toggle
+    toggleCameraBtn.addEventListener("click", async () => {
+      if (!isCameraActive) {
+        await startCameraVision();
+      } else {
+        stopCameraVision();
+      }
+    });
+
     async function startCameraVision() {
       try {
         cameraStream = await navigator.mediaDevices.getUserMedia({
@@ -631,7 +647,20 @@
         });
         cameraVideo.srcObject = cameraStream;
         cameraBox.classList.remove("hidden");
-      } catch(e) {}
+        toggleCameraBtn.classList.add("active");
+        isCameraActive = true;
+        startCameraStreaming();
+      } catch(e) {
+        toggleCameraBtn.classList.remove("active");
+      }
+    }
+
+    function stopCameraVision() {
+      if (cameraInterval) { clearInterval(cameraInterval); cameraInterval = null; }
+      if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+      cameraBox.classList.add("hidden");
+      toggleCameraBtn.classList.remove("active");
+      isCameraActive = false;
     }
 
     flipCameraBtn.onclick = async () => {
@@ -640,22 +669,22 @@
       await startCameraVision();
     };
 
-    // FIXED: Uses dedicated realtimeInput.video format
     function startCameraStreaming() {
       if (cameraInterval) clearInterval(cameraInterval);
       cameraInterval = setInterval(() => {
-        if (!ws || ws.readyState !== WebSocket.OPEN || !cameraStream) return;
+        if (!ws || ws.readyState !== WebSocket.OPEN || !cameraStream || !isCameraActive) return;
 
         offscreenCtx.drawImage(cameraVideo, 0, 0, 320, 240);
         const dataUrl = offscreenCanvas.toDataURL("image/jpeg", 0.5);
         const base64Data = dataUrl.split(",")[1];
 
+        // Format compliant with Bidi Live protocol
         const frame = {
           realtimeInput: {
-            video: {
-              data: base64Data,
-              mimeType: "image/jpeg"
-            }
+            mediaChunks: [{
+              mimeType: "image/jpeg",
+              data: base64Data
+            }]
           }
         };
         ws.send(JSON.stringify(frame));
@@ -820,10 +849,8 @@
 
     function cleanUpSession() {
       stopAudioPlayback();
+      stopCameraVision();
       if (echoCooldownTimer) clearTimeout(echoCooldownTimer);
-      if (cameraInterval) { clearInterval(cameraInterval); cameraInterval = null; }
-      if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
-      cameraBox.classList.add("hidden");
       isModelSpeaking = false;
 
       if (micStream) {
@@ -837,11 +864,11 @@
       isMuted = false;
       muteBtn.classList.remove("muted");
       connectBtn.classList.remove("hidden");
-      liveActions.classList.add("hidden");
+      liveControls.classList.add("hidden");
       setVisualState("idle", "Voice", "Ready");
     }
 
-    // Auto-Connect on launch if enabled
+    // Auto-Connect on launch
     window.addEventListener("DOMContentLoaded", () => {
       if (autoConnectToggle.checked && apiKeyInput.value.trim()) {
         setTimeout(() => connectBtn.click(), 250);

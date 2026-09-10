@@ -53,7 +53,7 @@
       pointer-events: none;
     }
 
-    /* Mini Live Viewport */
+    /* Mini Live Camera Viewport */
     .camera-float {
       pointer-events: auto;
       width: 130px;
@@ -324,19 +324,16 @@
         </button>
 
         <div class="action-group hidden" id="liveControls">
-          <!-- Live Camera Button -->
           <button class="icon-btn" id="toggleCameraBtn" title="Camera Vision">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
           </button>
 
-          <!-- Mic Mute Button -->
           <button class="icon-btn" id="muteBtn" title="Mute Mic">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
           </button>
 
-          <!-- End Call Button -->
           <button class="icon-btn btn-end" id="disconnectBtn" title="End Call">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
           </button>
         </div>
 
@@ -347,7 +344,6 @@
     </div>
   </div>
 
-  <!-- Settings Sheet -->
   <div class="sheet" id="settingsSheet">
     <div class="sheet-handle"></div>
     <div class="sheet-head">
@@ -401,8 +397,8 @@
     <div class="field">
       <label for="modelSelect">Target Model</label>
       <select id="modelSelect">
-        <option value="models/gemini-2.0-flash-exp">gemini-2.0-flash-exp (Fastest Live)</option>
-        <option value="models/gemini-2.0-flash-realtime-exp">gemini-2.0-flash-realtime-exp</option>
+        <option value="models/gemini-3.1-flash-live-preview" selected>gemini-3.1-flash-live-preview (Current Live)</option>
+        <option value="models/gemini-2.0-flash-exp">gemini-2.0-flash-exp</option>
       </select>
     </div>
 
@@ -482,7 +478,14 @@
     try {
       if (localStorage.getItem("gemini_live_key")) apiKeyInput.value = localStorage.getItem("gemini_live_key");
       if (localStorage.getItem("gemini_live_voice")) voiceSelect.value = localStorage.getItem("gemini_live_voice");
-      if (localStorage.getItem("gemini_live_model")) modelSelect.value = localStorage.getItem("gemini_live_model");
+      
+      // Default to gemini-3.1-flash-live-preview
+      if (localStorage.getItem("gemini_live_model")) {
+        modelSelect.value = localStorage.getItem("gemini_live_model");
+      } else {
+        modelSelect.value = "models/gemini-3.1-flash-live-preview";
+      }
+
       if (localStorage.getItem("gemini_live_system_prompt") !== null) {
         systemPromptInput.value = localStorage.getItem("gemini_live_system_prompt");
       }
@@ -532,7 +535,7 @@
       audioCtx = new AudioCtxClass({ sampleRate: 24000 });
       if (audioCtx.state === "suspended") await audioCtx.resume();
 
-      const chosenModel = modelSelect.value.trim();
+      const chosenModel = modelSelect.value.trim() || "models/gemini-3.1-flash-live-preview";
       const endpoint = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(key)}`;
 
       try {
@@ -544,7 +547,6 @@
 
       ws.onopen = () => {
         const promptText = systemPromptInput.value.trim();
-        // Setup payload: Removed invalid googleSearch tool that causes WebSocket rejection
         const setupPayload = {
           setup: {
             model: chosenModel,
@@ -604,7 +606,7 @@
         toggleCameraBtn.classList.add("active");
         isCameraActive = true;
 
-        // CRITICAL FIX: Only stream after video has active dimensions
+        // Guard: Wait for video stream to actually produce frames
         cameraVideo.onloadedmetadata = () => {
           cameraVideo.play();
           isCameraReady = true;
@@ -640,7 +642,7 @@
         offscreenCtx.drawImage(cameraVideo, 0, 0, 320, 240);
         const dataUrl = offscreenCanvas.toDataURL("image/jpeg", 0.5);
         const parts = dataUrl.split(",");
-        if (parts.length < 2 || !parts[1]) return; // Guard against empty frame
+        if (parts.length < 2 || !parts[1]) return;
 
         const frame = {
           realtimeInput: {

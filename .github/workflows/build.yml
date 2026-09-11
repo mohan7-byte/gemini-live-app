@@ -59,7 +59,7 @@ jobs:
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
               <string name="app_name">Voice</string>
-              <string name="accessibility_desc">Enables Volume Down double-click trigger, screen reading, automated gestures, and autonomous device controls.</string>
+              <string name="accessibility_desc">Enables Volume Down double-click trigger, pinpoint screen automation, and autonomous device controls.</string>
           </resources>
           EOF
 
@@ -116,8 +116,8 @@ jobs:
                   applicationId "com.gemini.live"
                   minSdk 24
                   targetSdk 34
-                  versionCode 12
-                  versionName "1.9.2"
+                  versionCode 13
+                  versionName "2.0"
               }
               buildTypes {
                   release {
@@ -139,6 +139,8 @@ jobs:
               <uses-permission android:name="android.permission.CALL_PHONE" />
               <uses-permission android:name="android.permission.SEND_SMS" />
               <uses-permission android:name="android.permission.READ_CONTACTS" />
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
               <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
@@ -152,6 +154,7 @@ jobs:
                   android:icon="@mipmap/ic_launcher"
                   android:hardwareAccelerated="true"
                   android:usesCleartextTraffic="true"
+                  android:requestLegacyExternalStorage="true"
                   android:theme="@android:style/Theme.Translucent.NoTitleBar">
                   <activity
                       android:name=".MainActivity"
@@ -191,6 +194,7 @@ jobs:
           </manifest>
           EOF
 
+          # ScreenCaptureService.java: 1:1 Crisp 288x592 Capture + Instant VirtualDisplay Release
           cat << 'EOF' > app/src/main/java/com/gemini/live/ScreenCaptureService.java
           package com.gemini.live;
 
@@ -253,8 +257,7 @@ jobs:
                   } catch (Exception ignored) {}
               }
 
-              // ऑन-डिमांड: जब जेमिनी फ्रेम मांगेगा, 200ms में फ्रेम लेगा और तुरंत वर्चुअल डिस्प्ले रिलीज़ कर देगा
-              // जिससे कास्ट आइकन भी स्टेटस बार में नहीं रहेगा और सर्विस कभी किल नहीं होगी
+              // Captures 1:1 Native Resolution without downscaling blur
               public String captureScreenBase64() {
                   if (mediaProjection == null) {
                       initProjection();
@@ -272,8 +275,9 @@ jobs:
                       if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
                       else dm = getResources().getDisplayMetrics();
 
-                      int width = dm.widthPixels / 2;
-                      int height = dm.heightPixels / 2;
+                      // Native resolution 1:1 (crisp 288x592 text)
+                      int width = dm.widthPixels;
+                      int height = dm.heightPixels;
 
                       imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2);
                       virtualDisplay = mediaProjection.createVirtualDisplay(
@@ -282,7 +286,6 @@ jobs:
                           imageReader.getSurface(), null, null
                       );
 
-                      // फ्रेम आने तक 50ms के अंतराल में 6 बार चेक करेगा (अधिकतम 300ms)
                       for (int i = 0; i < 6; i++) {
                           SystemClock.sleep(50);
                           image = imageReader.acquireLatestImage();
@@ -302,7 +305,7 @@ jobs:
 
                       Bitmap cropped = Bitmap.createBitmap(bitmap, 0, 0, width, height);
                       ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                      cropped.compress(Bitmap.CompressFormat.JPEG, 60, baos);
+                      cropped.compress(Bitmap.CompressFormat.JPEG, 75, baos);
                       return Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP);
 
                   } catch (Exception e) {
@@ -310,7 +313,7 @@ jobs:
                   } finally {
                       if (bitmap != null) bitmap.recycle();
                       if (image != null) image.close();
-                      if (virtualDisplay != null) virtualDisplay.release(); // कास्ट आइकन तुरंत हट जाएगा
+                      if (virtualDisplay != null) virtualDisplay.release(); // Mirroring icon disappears immediately
                       if (imageReader != null) imageReader.close();
                   }
               }
@@ -351,6 +354,7 @@ jobs:
           }
           EOF
 
+          # VolumeTriggerService.java: Sniper Normalization, Magnetic Snap, Long-Press & Interactive Catalog
           cat << 'EOF' > app/src/main/java/com/gemini/live/VolumeTriggerService.java
           package com.gemini.live;
 
@@ -481,7 +485,7 @@ jobs:
                   startActivity(intent);
               }
 
-              // Auto-Resolving Sniper Tap Engine (Maps 0-1000 Normalized to Physical Screen Pixels)
+              // Sniper Tap Engine with 0-1000 Normalized Mapping + 35px Magnetic Snap
               public boolean tapCoordinates(int x, int y) {
                   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
 
@@ -493,8 +497,8 @@ jobs:
                   int targetX;
                   int targetY;
 
-                  // Auto-detect: if coordinate is within 0-1000 range, normalize it to physical resolution
-                  if (x <= 1000 && y <= 1000 && dm.widthPixels > 1000) {
+                  // Normalize 0-1000 input directly to real framebuffer
+                  if (x <= 1000 && y <= 1000) {
                       targetX = Math.round((x / 1000.0f) * dm.widthPixels);
                       targetY = Math.round((y / 1000.0f) * dm.heightPixels);
                   } else {
@@ -502,8 +506,18 @@ jobs:
                       targetY = y;
                   }
 
-                  targetX = Math.max(15, Math.min(targetX, dm.widthPixels - 15));
-                  targetY = Math.max(15, Math.min(targetY, dm.heightPixels - 15));
+                  // Magnetic Snap: lock onto nearest clickable button if within 35px
+                  AccessibilityNodeInfo root = getRootInActiveWindow();
+                  if (root != null) {
+                      Rect snapped = findNearbyElementBounds(root, targetX, targetY, 35);
+                      if (snapped != null) {
+                          targetX = snapped.centerX();
+                          targetY = snapped.centerY();
+                      }
+                  }
+
+                  targetX = Math.max(5, Math.min(targetX, dm.widthPixels - 5));
+                  targetY = Math.max(5, Math.min(targetY, dm.heightPixels - 5));
 
                   Path clickPath = new Path();
                   clickPath.moveTo(targetX, targetY);
@@ -520,9 +534,58 @@ jobs:
                       @Override
                       public void onCompleted(GestureDescription gestureDescription) {
                           super.onCompleted(gestureDescription);
-                          showToast("✓ Tapped at (" + finalX + ", " + finalY + ")");
+                          showToast("✓ Tapped (" + finalX + ", " + finalY + ")");
                       }
                   }, null);
+              }
+
+              // Hardware Long-Press (700ms) for Text Selection & Context Menus
+              public boolean longPress(int x, int y) {
+                  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
+
+                  WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+                  DisplayMetrics dm = new DisplayMetrics();
+                  if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
+                  else dm = getResources().getDisplayMetrics();
+
+                  int targetX = (x <= 1000) ? Math.round((x / 1000.0f) * dm.widthPixels) : x;
+                  int targetY = (y <= 1000) ? Math.round((y / 1000.0f) * dm.heightPixels) : y;
+
+                  Path path = new Path();
+                  path.moveTo(targetX, targetY);
+                  path.lineTo(targetX, targetY + 1);
+
+                  GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 700);
+                  GestureDescription.Builder builder = new GestureDescription.Builder();
+                  builder.addStroke(stroke);
+
+                  final int fX = targetX;
+                  final int fY = targetY;
+
+                  return dispatchGesture(builder.build(), new GestureResultCallback() {
+                      @Override
+                      public void onCompleted(GestureDescription gestureDescription) {
+                          super.onCompleted(gestureDescription);
+                          showToast("✓ Long-pressed (" + fX + ", " + fY + ")");
+                      }
+                  }, null);
+              }
+
+              private Rect findNearbyElementBounds(AccessibilityNodeInfo node, int x, int y, int radius) {
+                  if (node == null) return null;
+                  if (node.isClickable()) {
+                      Rect r = new Rect();
+                      node.getBoundsInScreen(r);
+                      if (r.contains(x, y)) return r;
+                      int dx = x - r.centerX();
+                      int dy = y - r.centerY();
+                      if (Math.sqrt(dx * dx + dy * dy) <= radius) return r;
+                  }
+                  for (int i = 0; i < node.getChildCount(); i++) {
+                      Rect found = findNearbyElementBounds(node.getChild(i), x, y, radius);
+                      if (found != null) return found;
+                  }
+                  return null;
               }
 
               public boolean swipe(int startX, int startY, int endX, int endY, int durationMs) {
@@ -551,7 +614,7 @@ jobs:
                   }
               }
 
-              // Returns both the screen text AND a catalog of clickable elements with 0-1000 coordinates
+              // Returns visible text AND interactive candidate elements with 0-1000 coordinates
               public String readScreenText() {
                   AccessibilityNodeInfo root = getRootInActiveWindow();
                   if (root == null) return "No active window detected.";
@@ -657,12 +720,11 @@ jobs:
                   }
               }
 
-              // Universal Multi-Stage Typing Engine: Protects blinking cursor & handles soft keyboards
+              // Multi-Stage Typing Engine: Protects blinking cursor & prevents line shifting
               public boolean typeText(String text) {
                   AccessibilityNodeInfo root = getRootInActiveWindow();
                   if (root == null) return false;
 
-                  // Stage 1: If cursor is already active, DO NOT TAP. Paste directly at cursor!
                   AccessibilityNodeInfo focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
                   if (focused == null) focused = findFocusedNode(root, 0);
 
@@ -670,7 +732,6 @@ jobs:
                       return pasteDirectly(focused, text);
                   }
 
-                  // Stage 2: If no focus, locate the editable input, tap to activate cursor, then paste
                   AccessibilityNodeInfo editable = findFirstEditable(root, 0);
                   if (editable != null) {
                       Rect rect = new Rect();
@@ -715,7 +776,7 @@ jobs:
                       ok = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
                   }
 
-                  if (ok) showToast("✓ Inserted: " + (text.length() > 15 ? text.substring(0, 15) + "..." : text));
+                  if (ok) showToast("✓ Inserted text");
                   return ok;
               }
 
@@ -731,6 +792,7 @@ jobs:
           }
           EOF
 
+          # MainActivity.java: Playbook File Persistence, My Files Intent & Full Device Bridge
           cat << 'EOF' > app/src/main/java/com/gemini/live/MainActivity.java
           package com.gemini.live;
 
@@ -752,6 +814,8 @@ jobs:
           import android.net.Uri;
           import android.os.Build;
           import android.os.Bundle;
+          import android.os.Environment;
+          import android.os.StrictMode;
           import android.provider.ContactsContract;
           import android.telephony.SmsManager;
           import android.view.KeyEvent;
@@ -765,6 +829,8 @@ jobs:
           import android.widget.Toast;
           import org.json.JSONArray;
           import org.json.JSONObject;
+          import java.io.File;
+          import java.io.FileWriter;
           import java.util.List;
 
           public class MainActivity extends Activity {
@@ -794,7 +860,9 @@ jobs:
                       Manifest.permission.CAMERA,
                       Manifest.permission.CALL_PHONE,
                       Manifest.permission.SEND_SMS,
-                      Manifest.permission.READ_CONTACTS
+                      Manifest.permission.READ_CONTACTS,
+                      Manifest.permission.READ_EXTERNAL_STORAGE,
+                      Manifest.permission.WRITE_EXTERNAL_STORAGE
                   };
                   for (String p : perms) {
                       if (checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) {
@@ -860,6 +928,46 @@ jobs:
                           return b64 != null ? b64 : "Failed to capture frame.";
                       }
 
+                      // Saves rules to physical file: /sdcard/Documents/Voice/rules.json
+                      @JavascriptInterface
+                      public boolean saveRulesToFile(String jsonString) {
+                          try {
+                              File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "Voice");
+                              if (!dir.exists()) dir.mkdirs();
+                              File file = new File(dir, "rules.json");
+                              FileWriter writer = new FileWriter(file, false);
+                              writer.write(jsonString);
+                              writer.flush();
+                              writer.close();
+                              runOnUiThread(() -> Toast.makeText(MainActivity.this, "Rules synced to Documents/Voice/rules.json", Toast.LENGTH_SHORT).show());
+                              return true;
+                          } catch (Exception e) {
+                              return false;
+                          }
+                      }
+
+                      // 1-Tap launch into Samsung My Files or universal text editor
+                      @JavascriptInterface
+                      public void openRulesInFileManager() {
+                          runOnUiThread(() -> {
+                              try {
+                                  File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "Voice");
+                                  if (!dir.exists()) dir.mkdirs();
+                                  File file = new File(dir, "rules.json");
+
+                                  StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
+                                  StrictMode.setVmPolicy(builder.build());
+
+                                  Intent intent = new Intent(Intent.ACTION_VIEW);
+                                  intent.setDataAndType(Uri.fromFile(file), "application/json");
+                                  intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                  startActivity(Intent.createChooser(intent, "Open Rules in..."));
+                              } catch (Exception e) {
+                                  Toast.makeText(MainActivity.this, "Cannot open: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                              }
+                          });
+                      }
+
                       @JavascriptInterface
                       public String createNote(String text) {
                           try {
@@ -870,7 +978,7 @@ jobs:
                               startActivity(Intent.createChooser(intent, "Create Note"));
                               return "Opened note composer with text.";
                           } catch (Exception e) {
-                              return "Failed to open note: " + e.getMessage();
+                              return "Failed to create note: " + e.getMessage();
                           }
                       }
 
@@ -956,6 +1064,13 @@ jobs:
                           if (VolumeTriggerService.instance == null) return "Accessibility Service required.";
                           boolean ok = VolumeTriggerService.instance.tapCoordinates(x, y);
                           return ok ? "Tapped at (" + x + ", " + y + ")" : "Failed to tap coordinates.";
+                      }
+
+                      @JavascriptInterface
+                      public String longPress(int x, int y) {
+                          if (VolumeTriggerService.instance == null) return "Accessibility Service required.";
+                          boolean ok = VolumeTriggerService.instance.longPress(x, y);
+                          return ok ? "Long-pressed at (" + x + ", " + y + ")" : "Failed to long-press.";
                       }
 
                       @JavascriptInterface
@@ -1167,8 +1282,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete v1.9.2 --yes || true
-          git tag -d v1.9.2 || true
-          gh release create v1.9.2 app/build/outputs/apk/debug/app-debug.apk \
-            --title "Voice v1.9.2 (Live Task Level & Progress HUD)" \
-            --notes "Voice v1.9.2: Real-time autonomous task step counter, animated progress indicator bar, Cyan executing orb state, and live background status badges." || true
+          gh release delete v2.0 --yes || true
+          git tag -d v2.0 || true
+          gh release create v2.0 app/build/outputs/apk/debug/app-debug.apk \
+            --title "Voice v2.0 (Jarvis Self-Learning Engine)" \
+            --notes "Voice v2.0: Calibrated 1:1 Precision Tapping, 35px Magnetic Snap, Long-Press (700ms), 1-Shot Notes, Autonomous Learning Memory, and My Files Integration." || true

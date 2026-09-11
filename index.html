@@ -6,8 +6,8 @@
   <title>Voice</title>
   <style>
     :root {
-      --pill-bg: rgba(13, 16, 26, 0.94);
-      --pill-border: rgba(255, 255, 255, 0.14);
+      --pill-bg: rgba(13, 16, 26, 0.96);
+      --pill-border: rgba(255, 255, 255, 0.16);
       --sheet-bg: rgba(18, 20, 32, 0.98);
       --text: #f8fafc;
       --text-dim: #94a3b8;
@@ -42,7 +42,7 @@
 
     .dock-container {
       position: fixed;
-      bottom: calc(env(safe-area-inset-bottom, 16px) + 20px);
+      bottom: calc(env(safe-area-inset-bottom, 12px) + 12px);
       left: 0;
       right: 0;
       display: flex;
@@ -55,21 +55,15 @@
 
     .camera-float {
       pointer-events: auto;
-      width: 140px;
-      height: 105px;
-      border-radius: 20px;
+      width: 120px;
+      height: 90px;
+      border-radius: 16px;
       overflow: hidden;
       border: 1.5px solid rgba(255, 255, 255, 0.25);
       background: #000;
-      margin-bottom: 12px;
-      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75);
+      margin-bottom: 8px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.75);
       position: relative;
-      animation: popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    @keyframes popIn {
-      from { transform: scale(0.8) translateY(10px); opacity: 0; }
-      to { transform: scale(1) translateY(0); opacity: 1; }
     }
 
     .camera-float video {
@@ -80,10 +74,10 @@
 
     .cam-flip-btn {
       position: absolute;
-      top: 6px;
-      right: 6px;
-      width: 28px;
-      height: 28px;
+      top: 4px;
+      right: 4px;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
       background: rgba(0, 0, 0, 0.65);
       border: 1px solid rgba(255, 255, 255, 0.3);
@@ -91,39 +85,36 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       cursor: pointer;
     }
 
+    /* Calibrated for 288px width screen: Compact layout prevents clipping */
     .capsule {
       pointer-events: auto;
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 8px 14px 8px 10px;
+      gap: 6px;
+      padding: 5px 8px;
       background: var(--pill-bg);
       border: 1px solid var(--pill-border);
       border-radius: 999px;
-      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.75);
-      backdrop-filter: blur(36px);
-      -webkit-backdrop-filter: blur(36px);
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-      max-width: 92vw;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75);
+      max-width: 96vw;
       position: relative;
-      overflow: hidden;
     }
 
     .task-progress-bar {
       position: absolute;
       bottom: 0;
-      left: 16px;
-      right: 16px;
-      height: 2.5px;
-      background: rgba(255, 255, 255, 0.06);
+      left: 12px;
+      right: 12px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.08);
       border-radius: 99px;
       overflow: hidden;
       opacity: 0;
-      transition: opacity 0.3s ease;
+      transition: opacity 0.2s ease;
     }
 
     .task-progress-inner {
@@ -135,7 +126,7 @@
 
     .state-working .task-progress-bar { opacity: 1; }
     .state-working .task-progress-inner {
-      animation: taskShimmer 1.3s infinite linear;
+      animation: taskShimmer 1.2s infinite linear;
     }
 
     @keyframes taskShimmer {
@@ -145,8 +136,8 @@
 
     .orb-slot {
       position: relative;
-      width: 42px;
-      height: 42px;
+      width: 32px;
+      height: 32px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -158,24 +149,24 @@
       width: 100%;
       height: 100%;
       border-radius: 50%;
-      filter: blur(12px);
+      filter: blur(8px);
       opacity: 0.5;
-      transition: all 0.4s ease;
+      transition: all 0.3s ease;
     }
 
     .orb-core {
       position: relative;
-      width: 24px;
-      height: 24px;
+      width: 20px;
+      height: 20px;
       border-radius: 50%;
-      box-shadow: inset 0 2px 6px rgba(255,255,255,0.5);
-      transition: all 0.4s ease;
-      animation: coreFloat 3.5s ease-in-out infinite alternate;
+      box-shadow: inset 0 1px 4px rgba(255,255,255,0.5);
+      transition: all 0.3s ease;
+      animation: coreFloat 3s ease-in-out infinite alternate;
     }
 
     @keyframes coreFloat {
-      0% { transform: scale(0.96); }
-      100% { transform: scale(1.04); }
+      0% { transform: scale(0.95); }
+      100% { transform: scale(1.05); }
     }
 
     .state-idle .orb-glow { background: rgba(99, 102, 241, 0.35); }
@@ -184,63 +175,61 @@
     .state-listening .orb-glow {
       background: rgba(168, 85, 247, 0.9);
       opacity: 0.9;
-      transform: scale(1.25);
+      transform: scale(1.2);
     }
     .state-listening .orb-core {
       background: radial-gradient(circle at 35% 35%, #f3e8ff 0%, #a855f7 100%);
-      box-shadow: 0 0 14px rgba(168, 85, 247, 0.8), inset 0 2px 6px #fff;
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.8), inset 0 1px 4px #fff;
     }
 
     .state-working .orb-glow {
       background: rgba(6, 182, 212, 0.95);
       opacity: 0.95;
-      transform: scale(1.35);
-      animation: workingPulse 1.2s ease-in-out infinite alternate;
+      transform: scale(1.25);
+      animation: workingPulse 1s ease-in-out infinite alternate;
     }
     .state-working .orb-core {
       background: radial-gradient(circle at 35% 35%, #cffafe 0%, #06b6d4 50%, #0e7490 100%);
-      box-shadow: 0 0 18px rgba(6, 182, 212, 0.9), inset 0 2px 6px #fff;
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.9), inset 0 1px 4px #fff;
     }
 
     @keyframes workingPulse {
-      0% { transform: scale(1.15); opacity: 0.75; }
-      100% { transform: scale(1.4); opacity: 1; }
+      0% { transform: scale(1.1); opacity: 0.8; }
+      100% { transform: scale(1.3); opacity: 1; }
     }
 
     .state-speaking .orb-glow {
       background: rgba(251, 191, 36, 0.95);
       opacity: 0.95;
-      transform: scale(1.35);
+      transform: scale(1.25);
     }
     .state-speaking .orb-core {
       background: radial-gradient(circle at 35% 35%, #fffbeb 0%, #f59e0b 50%, #e11d48 100%);
-      box-shadow: 0 0 18px rgba(251, 191, 36, 0.85), inset 0 2px 6px #fff;
+      box-shadow: 0 0 14px rgba(251, 191, 36, 0.85), inset 0 1px 4px #fff;
     }
 
     .capsule-text {
       display: flex;
       flex-direction: column;
-      min-width: 90px;
-      max-width: 170px;
+      min-width: 65px;
+      max-width: 100px;
     }
 
     .capsule-status {
-      font-size: 0.82rem;
+      font-size: 0.78rem;
       font-weight: 600;
       color: var(--text);
-      letter-spacing: -0.01em;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
     .capsule-sub {
-      font-size: 0.68rem;
+      font-size: 0.65rem;
       color: var(--text-dim);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      transition: color 0.2s ease;
     }
 
     .state-working .capsule-sub { color: #67e8f9; font-weight: 500; }
@@ -248,25 +237,25 @@
     .action-group {
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: 5px;
+      flex-shrink: 0;
     }
 
     .icon-btn {
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.1);
       color: var(--text);
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: all 0.2s ease;
       flex-shrink: 0;
     }
 
-    .icon-btn:active { transform: scale(0.92); background: rgba(255, 255, 255, 0.18); }
+    .icon-btn:active { transform: scale(0.92); background: rgba(255, 255, 255, 0.22); }
     .icon-btn.active { background: rgba(168, 85, 247, 0.35); border-color: rgba(168, 85, 247, 0.7); color: #e9d5ff; }
 
     .btn-end { background: rgba(239, 68, 68, 0.88); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); }
@@ -276,81 +265,83 @@
       background: linear-gradient(135deg, #4338ca, #2563eb);
       color: #fff;
       border: 1px solid rgba(255, 255, 255, 0.25);
-      padding: 0 16px;
-      height: 36px;
+      padding: 0 10px;
+      height: 32px;
       border-radius: 999px;
-      font-size: 0.82rem;
+      font-size: 0.75rem;
       font-weight: 600;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
       cursor: pointer;
+      flex-shrink: 0;
     }
 
+    /* Settings Sheet: Uses display block + transform for guaranteed visibility */
     .sheet {
+      display: none;
       pointer-events: auto;
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
       background: var(--sheet-bg);
-      border-top: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: 28px 28px 0 0;
-      backdrop-filter: blur(40px);
-      -webkit-backdrop-filter: blur(40px);
-      padding: 16px 22px calc(env(safe-area-inset-bottom, 16px) + 18px) 22px;
-      transform: translateY(102%);
-      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      border-top: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 24px 24px 0 0;
+      padding: 12px 14px 20px 14px;
+      transform: translateY(100%);
+      transition: transform 0.25s ease;
       z-index: 30;
-      max-height: 85vh;
+      max-height: 90vh;
       overflow-y: auto;
       color: var(--text);
     }
 
     .sheet.open {
-      transform: translateY(0) !important;
       display: block !important;
+      transform: translateY(0) !important;
     }
-    .sheet-handle { width: 38px; height: 4px; background: rgba(255, 255, 255, 0.25); border-radius: 99px; margin: 0 auto 14px auto; }
-    .sheet-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-    .sheet-title { font-size: 0.95rem; font-weight: 600; }
 
-    .field { margin-bottom: 12px; }
-    .field label { display: block; font-size: 0.72rem; color: var(--text-dim); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .sheet-handle { width: 34px; height: 4px; background: rgba(255, 255, 255, 0.25); border-radius: 99px; margin: 0 auto 10px auto; }
+    .sheet-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .sheet-title { font-size: 0.9rem; font-weight: 600; }
+
+    .field { margin-bottom: 10px; }
+    .field label { display: block; font-size: 0.68rem; color: var(--text-dim); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
     .field input, .field select, .field textarea {
       width: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 12px;
-      padding: 10px 12px;
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      padding: 8px 10px;
       color: #fff;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       outline: none;
       user-select: text;
     }
 
-    .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
-    .toggle-label { font-size: 0.82rem; font-weight: 500; }
-    .toggle-desc { font-size: 0.7rem; color: var(--text-dim); margin-top: 2px; }
+    .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+    .toggle-label { font-size: 0.78rem; font-weight: 500; }
+    .toggle-desc { font-size: 0.65rem; color: var(--text-dim); margin-top: 2px; }
 
-    .switch { position: relative; display: inline-block; width: 42px; height: 23px; flex-shrink: 0; }
+    .switch { position: relative; display: inline-block; width: 38px; height: 21px; flex-shrink: 0; }
     .switch input { opacity: 0; width: 0; height: 0; }
-    .slider { position: absolute; cursor: pointer; inset: 0; background-color: #23293d; border-radius: 24px; transition: .3s; }
-    .slider:before { position: absolute; content: ""; height: 17px; width: 17px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .3s; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background-color: #23293d; border-radius: 24px; transition: .2s; }
+    .slider:before { position: absolute; content: ""; height: 15px; width: 15px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .2s; }
     input:checked + .slider { background-color: #7c3aed; }
-    input:checked + .slider:before { transform: translateX(19px); }
+    input:checked + .slider:before { transform: translateX(17px); }
 
     .action-card-btn {
       width: 100%;
       background: rgba(168, 85, 247, 0.12);
       border: 1px solid rgba(168, 85, 247, 0.35);
       color: #e9d5ff;
-      border-radius: 14px;
-      padding: 12px 14px;
+      border-radius: 12px;
+      padding: 10px 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin: 10px 0 14px 0;
+      margin: 8px 0 10px 0;
       cursor: pointer;
       text-align: left;
     }
@@ -359,24 +350,23 @@
     .memory-section {
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 16px;
-      padding: 14px;
-      margin-top: 14px;
-      margin-bottom: 14px;
+      border-radius: 12px;
+      padding: 10px;
+      margin-top: 8px;
+      margin-bottom: 10px;
     }
 
     .btn-sm {
       background: rgba(168, 85, 247, 0.25);
       border: 1px solid rgba(168, 85, 247, 0.6);
       color: #fff;
-      padding: 6px 12px;
+      padding: 6px 10px;
       border-radius: 8px;
-      font-size: 0.74rem;
+      font-size: 0.72rem;
       cursor: pointer;
       font-weight: 600;
-      transition: all 0.2s;
     }
-    .btn-sm:active { transform: scale(0.95); background: rgba(168, 85, 247, 0.4); }
+    .btn-sm:active { transform: scale(0.95); }
 
     .btn-secondary {
       background: rgba(255, 255, 255, 0.08);
@@ -388,7 +378,7 @@
 </head>
 <body class="state-idle">
 
-  <div class="touch-backdrop" id="dismissBackdrop"></div>
+  <div class="touch-backdrop" id="dismissBackdrop" onclick="handleBackdropClick(event)"></div>
 
   <div class="dock-container">
     <div class="camera-float hidden" id="cameraBox">
@@ -409,21 +399,21 @@
 
       <div class="action-group">
         <button class="btn-start" id="connectBtn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
           Start
         </button>
 
         <div class="action-group hidden" id="liveControls">
           <button class="icon-btn" id="toggleCameraBtn" title="Camera Vision">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
           </button>
           <button class="icon-btn btn-end" id="disconnectBtn" title="End Call">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
           </button>
         </div>
 
-        <button class="icon-btn" id="openSettingsBtn" title="Settings" onclick="openSettings()">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        <button class="icon-btn" id="openSettingsBtn" title="Settings" onclick="openSettings(event)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         </button>
       </div>
 
@@ -437,26 +427,24 @@
   <div class="sheet" id="settingsSheet">
     <div class="sheet-handle"></div>
     <div class="sheet-head">
-      <div class="sheet-title">Configuration & Memory</div>
-      <button class="icon-btn" id="closeSettingsBtn" onclick="closeSettings()" style="border:none;">✕</button>
+      <div class="sheet-title">Configuration & Rules</div>
+      <button class="icon-btn" id="closeSettingsBtn" onclick="closeSettings(event)" style="border:none;">✕</button>
     </div>
 
     <div class="action-card-btn" id="openAccessibilitySettingsBtn">
       <div>
-        <div style="font-weight: 600; font-size: 0.85rem;">⚡ Double-Click Volume Setup</div>
-        <div style="font-size: 0.72rem; opacity: 0.8; margin-top: 2px;">Tap to open Accessibility & turn on Voice trigger</div>
+        <div style="font-weight: 600; font-size: 0.8rem;">⚡ Double-Click Volume Setup</div>
+        <div style="font-size: 0.68rem; opacity: 0.8; margin-top: 2px;">Turn on Voice trigger in Accessibility</div>
       </div>
-      <span style="font-size: 1.2rem;">➔</span>
+      <span style="font-size: 1rem;">➔</span>
     </div>
 
     <div class="memory-section">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-        <div style="font-weight: 600; font-size: 0.82rem;">🧠 App Playbooks & Rules</div>
-      </div>
-      <textarea id="rulesEditor" rows="7" style="font-family: monospace; font-size: 0.72rem; white-space: pre; margin-top: 4px;"></textarea>
-      <div style="display: flex; gap: 8px; margin-top: 8px;">
-        <button class="btn-sm" id="saveRulesBtn">💾 Save Rules</button>
-        <button class="btn-sm btn-secondary" id="openFileManagerBtn">📁 Open in My Files</button>
+      <div style="font-weight: 600; font-size: 0.78rem; margin-bottom: 4px;">🧠 App Playbooks (288x592 Calibrated)</div>
+      <textarea id="rulesEditor" rows="6" style="font-family: monospace; font-size: 0.7rem; white-space: pre;"></textarea>
+      <div style="display: flex; gap: 6px; margin-top: 6px;">
+        <button class="btn-sm" id="saveRulesBtn">💾 Save</button>
+        <button class="btn-sm btn-secondary" id="openFileManagerBtn">📁 My Files</button>
       </div>
     </div>
 
@@ -476,15 +464,15 @@
       </label>
     </div>
 
-    <div class="field" style="margin-top: 14px;">
-      <label for="systemPrompt">Assistant Instructions (Jarvis Protocol)</label>
+    <div class="field" style="margin-top: 10px;">
+      <label for="systemPrompt">Assistant Instructions</label>
       <textarea id="systemPrompt" rows="3" placeholder="Leave empty for Jarvis default..."></textarea>
     </div>
 
     <div class="field">
       <label for="modelSelect">Target Model</label>
       <select id="modelSelect">
-        <option value="models/gemini-3.1-flash-live-preview">gemini-3.1-flash-live-preview</option>
+        <option value="models/gemini-3.1-flash-live-preview" selected>gemini-3.1-flash-live-preview</option>
       </select>
     </div>
 
@@ -503,6 +491,36 @@
   <canvas id="offscreenCanvas" class="hidden" width="288" height="592"></canvas>
 
   <script>
+    // Fail-Safe: Defined immediately at top of script to prevent ReferenceErrors
+    window.openSettings = function(e) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      const sheet = document.getElementById("settingsSheet");
+      if (sheet) {
+        sheet.style.display = "block";
+        setTimeout(() => sheet.classList.add("open"), 10);
+      }
+    };
+
+    window.closeSettings = function(e) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      const sheet = document.getElementById("settingsSheet");
+      if (sheet) {
+        sheet.classList.remove("open");
+        setTimeout(() => { sheet.style.display = "none"; }, 250);
+      }
+    };
+
+    window.handleBackdropClick = function(e) {
+      const sheet = document.getElementById("settingsSheet");
+      if (sheet && (sheet.classList.contains("open") || sheet.style.display === "block")) {
+        window.closeSettings(e);
+        return;
+      }
+      if (window.AndroidBridge && window.AndroidBridge.minimize) {
+        window.AndroidBridge.minimize();
+      }
+    };
+
     const DEFAULT_APP_RULES = {
       "com.samsung.android.app.notes": {
         "app_name": "Samsung Notes",
@@ -535,12 +553,14 @@ AUTONOMOUS PROTOCOL:
    - Call read_screen_text first whenever you need to interact with an app. It returns an "INTERACTIVE ELEMENTS" catalog with exact Candidate IDs [#0, #1, #2]!
    - ALWAYS prefer tap_element_id(element_id) when clicking a catalog button. It achieves 100% exact hardware-level accuracy with 0.0px error!
    - For visual coordinates, call tap_coordinates(x, y) or long_press(x, y).
-2. TYPING & NOTES:
+2. REAL-TIME FACTS & KNOWLEDGE:
+   - For current events, live sports, or info beyond cutoff, call search_live_web(query) for fast 200ms grounding.
+3. TYPING & NOTES:
    - For quick notes, call create_note(text) for instant zero-failure composition.
-   - For writing into open apps, text boxes, or chats, call type_text(text). It automatically pastes at the blinking cursor without jumping lines.
-3. HYPER-SPEED INTENTS:
+   - When writing into open apps, text boxes, or chats, call type_text(text). It automatically pastes at the blinking cursor without jumping lines.
+4. HYPER-SPEED INTENTS:
    - Use search_youtube, search_web, open_whatsapp, search_contacts, or open_application directly instead of clicking around home screens.
-4. CADENCE:
+5. CADENCE:
    - Execute actions silently in sequence until the goal is finished.
    - Speak a single, confident 1-sentence confirmation when finished.`;
 
@@ -548,7 +568,6 @@ AUTONOMOUS PROTOCOL:
       {
         functionDeclarations: [
           {
-            {
             name: "search_live_web",
             description: "Search the web in real-time for live facts, current news, sports scores, or information beyond your knowledge cutoff.",
             parameters: {
@@ -559,6 +578,7 @@ AUTONOMOUS PROTOCOL:
               required: ["query"]
             }
           },
+          {
             name: "tap_element_id",
             description: "Directly tap an on-screen button or input by its candidate ID number from the INTERACTIVE ELEMENTS catalog. 100% exact pinpoint accuracy.",
             parameters: {
@@ -801,38 +821,13 @@ AUTONOMOUS PROTOCOL:
     const toggleCameraBtn = document.getElementById("toggleCameraBtn");
     const flipCameraBtn = document.getElementById("flipCameraBtn");
     const liveControls = document.getElementById("liveControls");
-    const dismissBackdrop = document.getElementById("dismissBackdrop");
 
     const capsuleStatus = document.getElementById("capsuleStatus");
     const capsuleSub = document.getElementById("capsuleSub");
-    const settingsSheet = document.getElementById("settingsSheet");
-
-    window.openSettings = function() {
-      const sheet = document.getElementById("settingsSheet");
-      if (sheet) sheet.classList.add("open");
-    };
-
-    window.closeSettings = function() {
-      const sheet = document.getElementById("settingsSheet");
-      if (sheet) sheet.classList.remove("open");
-    };
-
-    document.getElementById("openSettingsBtn").onclick = window.openSettings;
-    document.getElementById("closeSettingsBtn").onclick = window.closeSettings;
 
     document.getElementById("openAccessibilitySettingsBtn").onclick = () => {
       if (window.AndroidBridge && window.AndroidBridge.openAccessibilitySettings) {
         window.AndroidBridge.openAccessibilitySettings();
-      }
-    };
-
-    dismissBackdrop.onclick = () => {
-      if (settingsSheet.classList.contains("open")) {
-        settingsSheet.classList.remove("open");
-        return;
-      }
-      if (window.AndroidBridge && window.AndroidBridge.minimize) {
-        window.AndroidBridge.minimize();
       }
     };
 
@@ -842,7 +837,6 @@ AUTONOMOUS PROTOCOL:
 
       if (localStorage.getItem("gemini_live_key")) apiKeyInput.value = localStorage.getItem("gemini_live_key");
       if (localStorage.getItem("gemini_live_voice")) voiceSelect.value = localStorage.getItem("gemini_live_voice");
-      if (localStorage.getItem("gemini_live_model")) modelSelect.value = localStorage.getItem("gemini_live_model");
 
       if (localStorage.getItem("gemini_live_has_saved_prompt") === "true") {
         systemPromptInput.value = localStorage.getItem("gemini_live_system_prompt") || "";
@@ -875,14 +869,12 @@ AUTONOMOUS PROTOCOL:
     };
 
     voiceSelect.onchange = () => localStorage.setItem("gemini_live_voice", voiceSelect.value);
-    modelSelect.onchange = () => localStorage.setItem("gemini_live_model", modelSelect.value);
     systemPromptInput.addEventListener("input", () => {
       localStorage.setItem("gemini_live_has_saved_prompt", "true");
       localStorage.setItem("gemini_live_system_prompt", systemPromptInput.value);
     });
     autoConnectToggle.onchange = () => localStorage.setItem("gemini_live_auto_connect", autoConnectToggle.checked);
 
-    // Native Engine UI Callbacks (Called by Java)
     window.setVisualState = function(state, status, sub) {
       document.body.className = `state-${state}`;
       capsuleStatus.innerText = status;
@@ -901,11 +893,10 @@ AUTONOMOUS PROTOCOL:
       window.setVisualState("working", `Working • Step ${step}`, description);
     };
 
-    // Native Engine Session Trigger
     connectBtn.addEventListener("click", () => {
       const key = apiKeyInput.value.trim();
       if (!key) {
-        settingsSheet.classList.add("open");
+        window.openSettings();
         return;
       }
       try { localStorage.setItem("gemini_live_key", key); } catch(e) {}
@@ -930,7 +921,6 @@ AUTONOMOUS PROTOCOL:
       }
     });
 
-    // Camera Vision Feed (Streams 1 FPS JPEG directly to Native WebSocket)
     toggleCameraBtn.addEventListener("click", async () => {
       if (!isCameraActive) {
         await startCameraVision();

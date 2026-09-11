@@ -485,7 +485,7 @@ jobs:
                   startActivity(intent);
               }
 
-              // Sniper Tap Engine with 0-1000 Normalized Mapping + 35px Magnetic Snap
+              // Calibrated for 288x592: Direct Pixels + Small Button Snap Only (No Containers)
               public boolean tapCoordinates(int x, int y) {
                   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
 
@@ -494,22 +494,19 @@ jobs:
                   if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
                   else dm = getResources().getDisplayMetrics();
 
-                  int targetX;
-                  int targetY;
+                  int targetX = x;
+                  int targetY = y;
 
-                  // Normalize 0-1000 input directly to real framebuffer
-                  if (x <= 1000 && y <= 1000) {
+                  // If Gemini sends normalized numbers (greater than screen size), scale down to 288x592
+                  if (x > dm.widthPixels || y > dm.heightPixels) {
                       targetX = Math.round((x / 1000.0f) * dm.widthPixels);
                       targetY = Math.round((y / 1000.0f) * dm.heightPixels);
-                  } else {
-                      targetX = x;
-                      targetY = y;
                   }
 
-                  // Magnetic Snap: lock onto nearest clickable button if within 35px
+                  // Magnetic Snap: ONLY snap to small leaf buttons (never giant containers!)
                   AccessibilityNodeInfo root = getRootInActiveWindow();
                   if (root != null) {
-                      Rect snapped = findNearbyElementBounds(root, targetX, targetY, 35);
+                      Rect snapped = findNearbyElementBounds(root, targetX, targetY, dm.widthPixels, 25);
                       if (snapped != null) {
                           targetX = snapped.centerX();
                           targetY = snapped.centerY();
@@ -548,8 +545,8 @@ jobs:
                   if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
                   else dm = getResources().getDisplayMetrics();
 
-                  int targetX = (x <= 1000) ? Math.round((x / 1000.0f) * dm.widthPixels) : x;
-                  int targetY = (y <= 1000) ? Math.round((y / 1000.0f) * dm.heightPixels) : y;
+                  int targetX = (x > dm.widthPixels) ? Math.round((x / 1000.0f) * dm.widthPixels) : x;
+                  int targetY = (y > dm.heightPixels) ? Math.round((y / 1000.0f) * dm.heightPixels) : y;
 
                   Path path = new Path();
                   path.moveTo(targetX, targetY);
@@ -571,18 +568,23 @@ jobs:
                   }, null);
               }
 
-              private Rect findNearbyElementBounds(AccessibilityNodeInfo node, int x, int y, int radius) {
+              // Rejects containers: only snaps to small clickable icons/buttons (max 45% screen width)
+              private Rect findNearbyElementBounds(AccessibilityNodeInfo node, int x, int y, int screenWidth, int radius) {
                   if (node == null) return null;
                   if (node.isClickable()) {
                       Rect r = new Rect();
                       node.getBoundsInScreen(r);
-                      if (r.contains(x, y)) return r;
-                      int dx = x - r.centerX();
-                      int dy = y - r.centerY();
-                      if (Math.sqrt(dx * dx + dy * dy) <= radius) return r;
+                      // Strict button check: must be smaller than 45% of screen width and max 120px tall
+                      boolean isSmallButton = r.width() > 5 && r.width() < (screenWidth * 0.45f) && r.height() < 120;
+                      if (isSmallButton) {
+                          if (r.contains(x, y)) return r;
+                          int dx = x - r.centerX();
+                          int dy = y - r.centerY();
+                          if (Math.sqrt(dx * dx + dy * dy) <= radius) return r;
+                      }
                   }
                   for (int i = 0; i < node.getChildCount(); i++) {
-                      Rect found = findNearbyElementBounds(node.getChild(i), x, y, radius);
+                      Rect found = findNearbyElementBounds(node.getChild(i), x, y, screenWidth, radius);
                       if (found != null) return found;
                   }
                   return null;

@@ -1300,7 +1300,7 @@ jobs:
                   // Setup Lean WebView (UI Only - ~35MB RAM)
                   webView = new WebView(this);
                   webView.setBackgroundColor(Color.TRANSPARENT);
-                  webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+                  webView.setLayerType(View.LAYER_TYPE_NONE, null);
                   setContentView(webView);
 
                   WebSettings s = webView.getSettings();

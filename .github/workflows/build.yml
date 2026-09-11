@@ -788,7 +788,6 @@ jobs:
                   }
 
                   getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-                  getWindow().addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
 
                   String[] perms = {
                       Manifest.permission.RECORD_AUDIO,
@@ -805,7 +804,6 @@ jobs:
                   }
 
                   projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-                                  if (ScreenCaptureService.instance == null) requestScreenCapture();
 
                   webView = new WebView(this);
                   webView.setBackgroundColor(Color.TRANSPARENT);
@@ -822,20 +820,6 @@ jobs:
 
                   webView.addJavascriptInterface(new Object() {
                       @JavascriptInterface
-                      public String createNote(String text) {
-                          try {
-                              Intent intent = new Intent(Intent.ACTION_SEND);
-                              intent.setType("text/plain");
-                              intent.putExtra(Intent.EXTRA_TEXT, text);
-                              intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                              startActivity(Intent.createChooser(intent, "Note"));
-                              return "Created note with text.";
-                          } catch (Exception e) {
-                              return "Failed to create note: " + e.getMessage();
-                          }
-                      }
-                      
-                      @JavascriptInterface
                       public void minimize() { runOnUiThread(() -> moveTaskToBack(true)); }
 
                       @JavascriptInterface
@@ -846,20 +830,9 @@ jobs:
                           runOnUiThread(() -> {
                               try {
                                   if (currentToast != null) currentToast.cancel();
-                                  currentToast = Toast.makeText(MainActivity.this, "⚡ [Step " + step + "] " + action, Toast.LENGTH_SHORT);
+                                  currentToast = Toast.makeText(MainActivity.this, "⚡ [" + step + "] " + action, Toast.LENGTH_SHORT);
                                   currentToast.show();
                               } catch (Exception ignored) {}
-                          });
-                      }
-
-                      @JavascriptInterface
-                      public void setFocusable(boolean focusable) {
-                          runOnUiThread(() -> {
-                              if (focusable) {
-                                  getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
-                              } else {
-                                  getWindow().addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
-                              }
                           });
                       }
 
@@ -885,6 +858,20 @@ jobs:
                           }
                           String b64 = ScreenCaptureService.instance.captureScreenBase64();
                           return b64 != null ? b64 : "Failed to capture frame.";
+                      }
+
+                      @JavascriptInterface
+                      public String createNote(String text) {
+                          try {
+                              Intent intent = new Intent(Intent.ACTION_SEND);
+                              intent.setType("text/plain");
+                              intent.putExtra(Intent.EXTRA_TEXT, text);
+                              intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                              startActivity(Intent.createChooser(intent, "Create Note"));
+                              return "Opened note composer with text.";
+                          } catch (Exception e) {
+                              return "Failed to open note: " + e.getMessage();
+                          }
                       }
 
                       @JavascriptInterface
@@ -1095,16 +1082,6 @@ jobs:
                   });
 
                   webView.loadUrl("file:///android_asset/index.html");
-              }
-
-              public void setWindowTouchThrough(boolean touchThrough) {
-                  runOnUiThread(() -> {
-                      if (touchThrough) {
-                          getWindow().addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
-                      } else {
-                          getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
-                      }
-                  });
               }
 
               public void requestScreenCapture() {

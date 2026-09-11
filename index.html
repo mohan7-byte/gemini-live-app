@@ -89,7 +89,6 @@
       cursor: pointer;
     }
 
-    /* Calibrated for 288px width screen: Compact layout prevents clipping */
     .capsule {
       pointer-events: auto;
       display: flex;
@@ -99,7 +98,7 @@
       background: var(--pill-bg);
       border: 1px solid var(--pill-border);
       border-radius: 999px;
-      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.75);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75);
       max-width: 95vw;
       position: relative;
     }
@@ -277,7 +276,6 @@
       flex-shrink: 0;
     }
 
-    /* Settings Sheet: Uses display block + transform for guaranteed visibility */
     .sheet {
       display: none;
       pointer-events: auto;
@@ -427,7 +425,7 @@
   <div class="sheet" id="settingsSheet">
     <div class="sheet-handle"></div>
     <div class="sheet-head">
-      <div class="sheet-title">Configuration & Rules</div>
+      <div class="sheet-title">Configuration & Memory</div>
       <button class="icon-btn" id="closeSettingsBtn" onclick="closeSettings(event)" style="border:none;">✕</button>
     </div>
 
@@ -491,7 +489,6 @@
   <canvas id="offscreenCanvas" class="hidden" width="288" height="592"></canvas>
 
   <script>
-    // Fail-Safe: Defined immediately at top of script to prevent ReferenceErrors
     window.openSettings = function(e) {
       if (e) { e.preventDefault(); e.stopPropagation(); }
       const sheet = document.getElementById("settingsSheet");
@@ -564,6 +561,7 @@ AUTONOMOUS PROTOCOL:
    - Execute actions silently in sequence until the goal is finished.
    - Speak a single, confident 1-sentence confirmation when finished.`;
 
+    // Strictly compliant OpenAPI schemas (No empty parameters object!)
     const DEVICE_TOOLS_SCHEMA = [
       {
         functionDeclarations: [
@@ -637,13 +635,11 @@ AUTONOMOUS PROTOCOL:
           },
           {
             name: "read_screen_text",
-            description: "Extract visible text AND an INTERACTIVE ELEMENTS catalog with candidate IDs for 100% accurate clicking.",
-            parameters: { type: "OBJECT", properties: {} }
+            description: "Extract visible text AND an INTERACTIVE ELEMENTS catalog with candidate IDs for 100% accurate clicking."
           },
           {
             name: "capture_screen",
-            description: "Capture screenshot to visually analyze layout or image buttons.",
-            parameters: { type: "OBJECT", properties: {} }
+            description: "Capture screenshot to visually analyze layout or image buttons."
           },
           {
             name: "scroll",
@@ -869,6 +865,7 @@ AUTONOMOUS PROTOCOL:
     };
 
     voiceSelect.onchange = () => localStorage.setItem("gemini_live_voice", voiceSelect.value);
+    modelSelect.onchange = () => localStorage.setItem("gemini_live_model", modelSelect.value);
     systemPromptInput.addEventListener("input", () => {
       localStorage.setItem("gemini_live_has_saved_prompt", "true");
       localStorage.setItem("gemini_live_system_prompt", systemPromptInput.value);

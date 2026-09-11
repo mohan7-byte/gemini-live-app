@@ -268,7 +268,6 @@
 
     .icon-btn:active { transform: scale(0.92); background: rgba(255, 255, 255, 0.18); }
     .icon-btn.active { background: rgba(168, 85, 247, 0.35); border-color: rgba(168, 85, 247, 0.7); color: #e9d5ff; }
-    .icon-btn.muted { background: rgba(239, 68, 68, 0.25); color: #fca5a5; border-color: rgba(239, 68, 68, 0.4); }
 
     .btn-end { background: rgba(239, 68, 68, 0.88); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); }
     .btn-end:active { background: var(--danger); }
@@ -363,13 +362,6 @@
       margin-bottom: 14px;
     }
 
-    .memory-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-
     .btn-sm {
       background: rgba(168, 85, 247, 0.25);
       border: 1px solid rgba(168, 85, 247, 0.6);
@@ -422,9 +414,6 @@
           <button class="icon-btn" id="toggleCameraBtn" title="Camera Vision">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
           </button>
-          <button class="icon-btn" id="muteBtn" title="Mute Mic">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-          </button>
           <button class="icon-btn btn-end" id="disconnectBtn" title="End Call">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
           </button>
@@ -445,7 +434,7 @@
   <div class="sheet" id="settingsSheet">
     <div class="sheet-handle"></div>
     <div class="sheet-head">
-      <div class="sheet-title">Configuration & Knowledge</div>
+      <div class="sheet-title">Configuration & Memory</div>
       <button class="icon-btn" id="closeSettingsBtn" style="border:none;">✕</button>
     </div>
 
@@ -457,15 +446,11 @@
       <span style="font-size: 1.2rem;">➔</span>
     </div>
 
-    <!-- App Playbook & Memory Editor -->
     <div class="memory-section">
-      <div class="memory-header">
-        <div>
-          <div style="font-weight: 600; font-size: 0.82rem;">🧠 App Playbooks & Memory</div>
-          <div style="font-size: 0.7rem; color: var(--text-dim); margin-top: 2px;">Exact coordinates & self-learned app rules</div>
-        </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <div style="font-weight: 600; font-size: 0.82rem;">🧠 App Playbooks & Rules</div>
       </div>
-      <textarea id="rulesEditor" rows="7" style="font-family: monospace; font-size: 0.72rem; white-space: pre; margin-top: 6px;"></textarea>
+      <textarea id="rulesEditor" rows="7" style="font-family: monospace; font-size: 0.72rem; white-space: pre; margin-top: 4px;"></textarea>
       <div style="display: flex; gap: 8px; margin-top: 8px;">
         <button class="btn-sm" id="saveRulesBtn">💾 Save Rules</button>
         <button class="btn-sm btn-secondary" id="openFileManagerBtn">📁 Open in My Files</button>
@@ -479,44 +464,11 @@
 
     <div class="toggle-row">
       <div>
-        <div class="toggle-label">Auto-Disconnect on Silence (4s)</div>
-        <div class="toggle-desc">Automatically close after finishing action</div>
-      </div>
-      <label class="switch">
-        <input type="checkbox" id="autoDisconnectToggle" checked />
-        <span class="slider"></span>
-      </label>
-    </div>
-
-    <div class="toggle-row">
-      <div>
         <div class="toggle-label">Auto-Connect on Launch</div>
         <div class="toggle-desc">Listen immediately when triggered</div>
       </div>
       <label class="switch">
         <input type="checkbox" id="autoConnectToggle" checked />
-        <span class="slider"></span>
-      </label>
-    </div>
-
-    <div class="toggle-row">
-      <div>
-        <div class="toggle-label">Speaker Echo Guard</div>
-        <div class="toggle-desc">Prevents speaker acoustic feedback loop</div>
-      </div>
-      <label class="switch">
-        <input type="checkbox" id="echoGuardToggle" checked />
-        <span class="slider"></span>
-      </label>
-    </div>
-
-    <div class="toggle-row">
-      <div>
-        <div class="toggle-label">Bluetooth Priority Mode</div>
-        <div class="toggle-desc">Keep audio on media speaker</div>
-      </div>
-      <label class="switch">
-        <input type="checkbox" id="btPriorityToggle" checked />
         <span class="slider"></span>
       </label>
     </div>
@@ -529,17 +481,16 @@
     <div class="field">
       <label for="modelSelect">Target Model</label>
       <select id="modelSelect">
-        <option value="models/gemini-3.1-flash-live-preview">gemini-3.1-flash-live-preview</option>
-        <option value="models/gemini-2.5-flash-native-audio-preview-12-2025">gemini-2.5-flash-native-audio-preview</option>
         <option value="models/gemini-2.0-flash-exp">gemini-2.0-flash-exp</option>
+        <option value="models/gemini-2.5-flash-native-audio-preview-12-2025">gemini-2.5-flash-native-audio-preview</option>
       </select>
     </div>
 
     <div class="field">
       <label for="voiceSelect">Voice Profile</label>
       <select id="voiceSelect">
-        <option value="Aoede">Aoede (Expressive)</option>
         <option value="Puck">Puck (Natural)</option>
+        <option value="Aoede">Aoede (Expressive)</option>
         <option value="Charon">Charon (Deep)</option>
         <option value="Fenrir">Fenrir (Calm)</option>
         <option value="Kore">Kore (Smooth)</option>
@@ -547,24 +498,24 @@
     </div>
   </div>
 
-  <canvas id="offscreenCanvas" class="hidden" width="320" height="240"></canvas>
+  <canvas id="offscreenCanvas" class="hidden" width="288" height="592"></canvas>
 
   <script>
     const DEFAULT_APP_RULES = {
       "com.samsung.android.app.notes": {
         "app_name": "Samsung Notes",
         "actions": {
-          "add_note_button": { "x": 875, "y": 935 }
+          "add_note_button": { "x": 253, "y": 554 }
         },
         "rules": [
-          "To create a new note, tap the circular pen button at (875, 935).",
-          "If the cursor is already blinking, do not tap; paste text directly with type_text."
+          "To create a new note, tap the circular pen button at (253, 554).",
+          "If cursor is already blinking, do not tap; paste directly with type_text."
         ]
       },
       "com.google.android.youtube": {
         "app_name": "YouTube",
         "rules": [
-          "Use search_youtube for instant 1-shot searches without UI clicks."
+          "Use search_youtube for instant 1-shot video queries."
         ]
       },
       "com.whatsapp": {
@@ -577,28 +528,242 @@
 
     const JARVIS_DEFAULT_PROMPT = `You are Voice (Jarvis), an ultra-fast autonomous Android agent with physical device control and experiential memory.
 
-AUTONOMOUS EXECUTION PROTOCOL:
-1. SPATIAL GROUNDING & PLAYBOOKS:
-   - Call read_screen_text first whenever you interact with an app. It returns an "INTERACTIVE ELEMENTS" catalog with exact (0-1000) coordinates AND active app playbook rules!
-   - When calling tap_coordinates(x, y) or long_press(x, y), always use normalized 0 to 1000 scale (where x=500, y=500 is the dead center).
-2. SELF-LEARNING & PERSISTENT MEMORY:
-   - If you discover a working button coordinate, path, or tip in an app that has no playbook rule, call save_app_rule so you remember it forever!
-3. TYPING & NOTES:
+AUTONOMOUS PROTOCOL:
+1. SPATIAL ACCURACY & CANDIDATE IDS:
+   - Call read_screen_text first whenever you need to interact with an app. It returns an "INTERACTIVE ELEMENTS" catalog with exact Candidate IDs [#0, #1, #2]!
+   - ALWAYS prefer tap_element_id(element_id) when clicking a catalog button. It achieves 100% exact hardware-level accuracy with 0.0px error!
+   - For visual coordinates, call tap_coordinates(x, y) or long_press(x, y).
+2. TYPING & NOTES:
    - For quick notes, call create_note(text) for instant zero-failure composition.
-   - When writing into open apps, text boxes, or chats, call type_text(text). It automatically pastes at the blinking cursor without jumping lines.
-4. HYPER-SPEED INTENTS:
+   - For writing into open apps, text boxes, or chats, call type_text(text). It automatically pastes at the blinking cursor without jumping lines.
+3. HYPER-SPEED INTENTS:
    - Use search_youtube, search_web, open_whatsapp, search_contacts, or open_application directly instead of clicking around home screens.
-5. CADENCE:
+4. CADENCE:
    - Execute actions silently in sequence until the goal is finished.
    - Speak a single, confident 1-sentence confirmation when finished.`;
 
-    let ws = null;
-    let audioCtx = null;
-    let micStream = null;
-    let micProcessor = null;
-    let isMuted = false;
-    let nextAudioTime = 0;
-    let activeSources = [];
+    const DEVICE_TOOLS_SCHEMA = [
+      {
+        functionDeclarations: [
+          {
+            name: "tap_element_id",
+            description: "Directly tap an on-screen button or input by its candidate ID number from the INTERACTIVE ELEMENTS catalog. 100% exact pinpoint accuracy.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                element_id: { type: "INTEGER", description: "The candidate ID (e.g. 0, 1, 2) from the catalog" }
+              },
+              required: ["element_id"]
+            }
+          },
+          {
+            name: "tap_coordinates",
+            description: "Physically tap screen pixel coordinates (x, y) on the display.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                x: { type: "INTEGER", description: "X coordinate" },
+                y: { type: "INTEGER", description: "Y coordinate" }
+              },
+              required: ["x", "y"]
+            }
+          },
+          {
+            name: "long_press",
+            description: "Hold down / long-press on coordinates (x, y) for 700ms to select text, open context menus, or trigger special actions.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                x: { type: "INTEGER", description: "X coordinate" },
+                y: { type: "INTEGER", description: "Y coordinate" }
+              },
+              required: ["x", "y"]
+            }
+          },
+          {
+            name: "create_note",
+            description: "Instantly create a note or document with the provided text body via Android intent (zero-failure).",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                text: { type: "STRING", description: "The note content" }
+              },
+              required: ["text"]
+            }
+          },
+          {
+            name: "type_text",
+            description: "Insert text directly into the active editable field or open note on screen at the blinking cursor.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                text: { type: "STRING", description: "The text to insert" }
+              },
+              required: ["text"]
+            }
+          },
+          {
+            name: "read_screen_text",
+            description: "Extract visible text AND an INTERACTIVE ELEMENTS catalog with candidate IDs for 100% accurate clicking.",
+            parameters: { type: "OBJECT", properties: {} }
+          },
+          {
+            name: "capture_screen",
+            description: "Capture screenshot to visually analyze layout or image buttons.",
+            parameters: { type: "OBJECT", properties: {} }
+          },
+          {
+            name: "scroll",
+            description: "Scroll screen up or down.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                direction: { type: "STRING", enum: ["down", "up"] }
+              },
+              required: ["direction"]
+            }
+          },
+          {
+            name: "swipe",
+            description: "Simulate a physical finger swipe across screen.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                start_x: { type: "INTEGER" },
+                start_y: { type: "INTEGER" },
+                end_x: { type: "INTEGER" },
+                end_y: { type: "INTEGER" },
+                duration_ms: { type: "INTEGER" }
+              },
+              required: ["start_x", "start_y", "end_x", "end_y"]
+            }
+          },
+          {
+            name: "wait_seconds",
+            description: "Pause execution for 1 to 4 seconds for screen/app to load.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                seconds: { type: "NUMBER" }
+              },
+              required: ["seconds"]
+            }
+          },
+          {
+            name: "open_application",
+            description: "Launch an app by name (e.g. Notes, WhatsApp, Chrome).",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                app_name: { type: "STRING" }
+              },
+              required: ["app_name"]
+            }
+          },
+          {
+            name: "search_contacts",
+            description: "Search contact phone number by name.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                query: { type: "STRING" }
+              },
+              required: ["query"]
+            }
+          },
+          {
+            name: "search_youtube",
+            description: "Open YouTube searching for a video or query.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                query: { type: "STRING" }
+              },
+              required: ["query"]
+            }
+          },
+          {
+            name: "search_web",
+            description: "Open Google Search in browser.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                query: { type: "STRING" }
+              },
+              required: ["query"]
+            }
+          },
+          {
+            name: "open_whatsapp",
+            description: "Open WhatsApp chat with prefilled message.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                phone_number: { type: "STRING" },
+                message: { type: "STRING" }
+              },
+              required: ["phone_number", "message"]
+            }
+          },
+          {
+            name: "make_phone_call",
+            description: "Call a phone number.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                phone_number: { type: "STRING" }
+              },
+              required: ["phone_number"]
+            }
+          },
+          {
+            name: "send_sms",
+            description: "Send an SMS text message.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                phone_number: { type: "STRING" },
+                message: { type: "STRING" }
+              },
+              required: ["phone_number", "message"]
+            }
+          },
+          {
+            name: "toggle_flashlight",
+            description: "Turn flashlight on or off.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                state: { type: "BOOLEAN" }
+              },
+              required: ["state"]
+            }
+          },
+          {
+            name: "set_volume",
+            description: "Set volume (0 to 100).",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                level_percent: { type: "INTEGER" }
+              },
+              required: ["level_percent"]
+            }
+          },
+          {
+            name: "navigate_system",
+            description: "System navigation (home, back, recents, lock, notifications).",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                action: { type: "STRING", enum: ["home", "back", "recents", "notifications", "quick_settings", "lock"] }
+              },
+              required: ["action"]
+            }
+          }
+        ]
+      }
+    ];
 
     let cameraStream = null;
     let cameraInterval = null;
@@ -609,29 +774,17 @@ AUTONOMOUS EXECUTION PROTOCOL:
     const offscreenCanvas = document.getElementById("offscreenCanvas");
     const offscreenCtx = offscreenCanvas.getContext("2d");
 
-    let isModelSpeaking = false;
-    let echoCooldownTimer = null;
-    let inactivityTimer = null;
-    let autonomousStepCount = 0;
-
-    let activePlaybooks = DEFAULT_APP_RULES;
-
     const apiKeyInput = document.getElementById("apiKey");
     const modelSelect = document.getElementById("modelSelect");
     const voiceSelect = document.getElementById("voiceSelect");
     const systemPromptInput = document.getElementById("systemPrompt");
-    const autoDisconnectToggle = document.getElementById("autoDisconnectToggle");
     const autoConnectToggle = document.getElementById("autoConnectToggle");
-    const echoGuardToggle = document.getElementById("echoGuardToggle");
-    const btPriorityToggle = document.getElementById("btPriorityToggle");
-
     const rulesEditor = document.getElementById("rulesEditor");
     const saveRulesBtn = document.getElementById("saveRulesBtn");
     const openFileManagerBtn = document.getElementById("openFileManagerBtn");
 
     const connectBtn = document.getElementById("connectBtn");
     const disconnectBtn = document.getElementById("disconnectBtn");
-    const muteBtn = document.getElementById("muteBtn");
     const toggleCameraBtn = document.getElementById("toggleCameraBtn");
     const flipCameraBtn = document.getElementById("flipCameraBtn");
     const liveControls = document.getElementById("liveControls");
@@ -660,13 +813,9 @@ AUTONOMOUS EXECUTION PROTOCOL:
       }
     };
 
-    // Load Local Rules & Settings
     try {
       const savedRules = localStorage.getItem("jarvis_app_rules");
-      if (savedRules) {
-        activePlaybooks = JSON.parse(savedRules);
-      }
-      rulesEditor.value = JSON.stringify(activePlaybooks, null, 2);
+      rulesEditor.value = savedRules ? savedRules : JSON.stringify(DEFAULT_APP_RULES, null, 2);
 
       if (localStorage.getItem("gemini_live_key")) apiKeyInput.value = localStorage.getItem("gemini_live_key");
       if (localStorage.getItem("gemini_live_voice")) voiceSelect.value = localStorage.getItem("gemini_live_voice");
@@ -678,19 +827,17 @@ AUTONOMOUS EXECUTION PROTOCOL:
         systemPromptInput.value = JARVIS_DEFAULT_PROMPT;
       }
 
-      if (localStorage.getItem("gemini_live_auto_disconnect") !== null) autoDisconnectToggle.checked = localStorage.getItem("gemini_live_auto_disconnect") === "true";
-      if (localStorage.getItem("gemini_live_auto_connect") !== null) autoConnectToggle.checked = localStorage.getItem("gemini_live_auto_connect") === "true";
-      if (localStorage.getItem("gemini_live_echo_guard") !== null) echoGuardToggle.checked = localStorage.getItem("gemini_live_echo_guard") === "true";
-      if (localStorage.getItem("gemini_live_bt_priority") !== null) btPriorityToggle.checked = localStorage.getItem("gemini_live_bt_priority") === "true";
+      if (localStorage.getItem("gemini_live_auto_connect") !== null) {
+        autoConnectToggle.checked = localStorage.getItem("gemini_live_auto_connect") === "true";
+      }
     } catch(e) {}
 
     saveRulesBtn.onclick = () => {
       try {
         const parsed = JSON.parse(rulesEditor.value);
-        activePlaybooks = parsed;
-        localStorage.setItem("jarvis_app_rules", JSON.stringify(activePlaybooks, null, 2));
+        localStorage.setItem("jarvis_app_rules", JSON.stringify(parsed, null, 2));
         if (window.AndroidBridge && window.AndroidBridge.saveRulesToFile) {
-          window.AndroidBridge.saveRulesToFile(JSON.stringify(activePlaybooks, null, 2));
+          window.AndroidBridge.saveRulesToFile(JSON.stringify(parsed, null, 2));
         }
         alert("Rules saved successfully!");
       } catch(err) {
@@ -710,307 +857,29 @@ AUTONOMOUS EXECUTION PROTOCOL:
       localStorage.setItem("gemini_live_has_saved_prompt", "true");
       localStorage.setItem("gemini_live_system_prompt", systemPromptInput.value);
     });
-    autoDisconnectToggle.onchange = () => localStorage.setItem("gemini_live_auto_disconnect", autoDisconnectToggle.checked);
     autoConnectToggle.onchange = () => localStorage.setItem("gemini_live_auto_connect", autoConnectToggle.checked);
-    echoGuardToggle.onchange = () => localStorage.setItem("gemini_live_echo_guard", echoGuardToggle.checked);
-    btPriorityToggle.onchange = () => localStorage.setItem("gemini_live_bt_priority", btPriorityToggle.checked);
 
-    function setVisualState(state, status, sub) {
+    // Native Engine UI Callbacks (Called by Java)
+    window.setVisualState = function(state, status, sub) {
       document.body.className = `state-${state}`;
       capsuleStatus.innerText = status;
       capsuleSub.innerText = sub;
-    }
 
-    function getActionDescription(name, args) {
-      switch(name) {
-        case "save_app_rule": return `Learning app rule...`;
-        case "create_note": return `Creating note...`;
-        case "open_application": return `Opening ${args.app_name || 'app'}...`;
-        case "type_text": {
-          const preview = (args.text || '').length > 18 ? (args.text || '').substring(0, 15) + '...' : (args.text || '');
-          return `Typing: "${preview}"`;
-        }
-        case "tap_element": return `Tapping "${args.label || 'button'}"...`;
-        case "tap_coordinates": return `Tapping (${args.x}, ${args.y})...`;
-        case "long_press": return `Holding (${args.x}, ${args.y})...`;
-        case "scroll": return `Scrolling ${args.direction || 'down'}...`;
-        case "swipe": return `Swiping screen...`;
-        case "wait_seconds": return `Waiting for UI (${args.seconds || 1}s)...`;
-        case "read_screen_text": return `Reading screen catalog...`;
-        case "capture_screen": return `Analyzing screen image...`;
-        case "search_contacts": return `Searching contact "${args.query || ''}"...`;
-        case "search_youtube": return `Searching YouTube...`;
-        case "search_web": return `Searching Google...`;
-        case "open_whatsapp": return `Opening WhatsApp...`;
-        case "make_phone_call": return `Calling ${args.phone_number || ''}...`;
-        case "send_sms": return `Sending SMS...`;
-        case "toggle_flashlight": return `Toggling flashlight...`;
-        case "set_volume": return `Setting volume...`;
-        case "navigate_system": return `Navigating ${args.action || ''}...`;
-        default: return `Executing action...`;
+      if (state === "idle") {
+        connectBtn.classList.remove("hidden");
+        liveControls.classList.add("hidden");
+      } else {
+        connectBtn.classList.add("hidden");
+        liveControls.classList.remove("hidden");
       }
-    }
+    };
 
-    function resetInactivityTimer() {
-      if (inactivityTimer) {
-        clearTimeout(inactivityTimer);
-        inactivityTimer = null;
-      }
-    }
+    window.showTaskStep = function(step, description) {
+      window.setVisualState("working", `Working • Step ${step}`, description);
+    };
 
-    function startInactivityCountdown() {
-      resetInactivityTimer();
-      if (!autoDisconnectToggle.checked || !ws || ws.readyState !== WebSocket.OPEN) return;
-
-      inactivityTimer = setTimeout(() => {
-        if (!isModelSpeaking && activeSources.length === 0) {
-          cleanUpSession();
-          if (window.AndroidBridge && window.AndroidBridge.closeApp) {
-            window.AndroidBridge.closeApp();
-          }
-        }
-      }, 4000);
-    }
-
-    const deviceTools = [
-      {
-        functionDeclarations: [
-          {
-            name: "save_app_rule",
-            description: "Permanently save a newly learned UI button coordinate, playbook rule, or shortcut for an app so you remember it in all future sessions.",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                app_package: { type: "STRING", description: "Package name or identifier (e.g. com.android.chrome)" },
-                action_name: { type: "STRING", description: "Action identifier (e.g. download_button, search_bar)" },
-                x: { type: "INTEGER", description: "Normalized X coordinate (0-1000)" },
-                y: { type: "INTEGER", description: "Normalized Y coordinate (0-1000)" },
-                rule: { type: "STRING", description: "Key lesson or tip to remember" }
-              },
-              required: ["app_package", "action_name"]
-            }
-          },
-          {
-            name: "create_note",
-            description: "Instantly create a note or document with the provided text body via Android intent (zero-failure).",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                text: { type: "STRING", description: "The note content" }
-              },
-              required: ["text"]
-            }
-          },
-          {
-            name: "type_text",
-            description: "Insert text directly into the active editable field or open note on screen",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                text: { type: "STRING", description: "The exact text to type or write" }
-              },
-              required: ["text"]
-            }
-          },
-          {
-            name: "tap_coordinates",
-            description: "Physically tap screen coordinates. Use normalized 0 to 1000 scale (where x=500, y=500 is the center of screen).",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                x: { type: "INTEGER", description: "X coordinate (0 to 1000)" },
-                y: { type: "INTEGER", description: "Y coordinate (0 to 1000)" }
-              },
-              required: ["x", "y"]
-            }
-          },
-          {
-            name: "long_press",
-            description: "Hold down / long-press on coordinates (0 to 1000) for 700ms to select text, open context menus, or trigger special actions.",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                x: { type: "INTEGER", description: "X coordinate (0 to 1000)" },
-                y: { type: "INTEGER", description: "Y coordinate (0 to 1000)" }
-              },
-              required: ["x", "y"]
-            }
-          },
-          {
-            name: "tap_element",
-            description: "Click a UI element or button matching a label or description",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                label: { type: "STRING", description: "Text or label of the item to tap" }
-              },
-              required: ["label"]
-            }
-          },
-          {
-            name: "scroll",
-            description: "Scroll screen up or down",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                direction: { type: "STRING", enum: ["down", "up"] }
-              },
-              required: ["direction"]
-            }
-          },
-          {
-            name: "swipe",
-            description: "Simulate a physical finger swipe across screen",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                start_x: { type: "INTEGER" },
-                start_y: { type: "INTEGER" },
-                end_x: { type: "INTEGER" },
-                end_y: { type: "INTEGER" },
-                duration_ms: { type: "INTEGER" }
-              },
-              required: ["start_x", "start_y", "end_x", "end_y"]
-            }
-          },
-          {
-            name: "wait_seconds",
-            description: "Pause execution for 1 to 4 seconds for screen/app to load",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                seconds: { type: "NUMBER" }
-              },
-              required: ["seconds"]
-            }
-          },
-          {
-            name: "read_screen_text",
-            description: "Extract visible text, an INTERACTIVE ELEMENTS catalog with (0-1000) coordinates, AND active app playbook memory.",
-            parameters: { type: "OBJECT", properties: {} }
-          },
-          {
-            name: "capture_screen",
-            description: "Capture screenshot to visually analyze layout or image buttons",
-            parameters: { type: "OBJECT", properties: {} }
-          },
-          {
-            name: "open_application",
-            description: "Launch an app by name (e.g. Notes, WhatsApp, Chrome)",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                app_name: { type: "STRING" }
-              },
-              required: ["app_name"]
-            }
-          },
-          {
-            name: "search_contacts",
-            description: "Search contact phone number by name",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                query: { type: "STRING" }
-              },
-              required: ["query"]
-            }
-          },
-          {
-            name: "search_youtube",
-            description: "Open YouTube searching for a video or query",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                query: { type: "STRING" }
-              },
-              required: ["query"]
-            }
-          },
-          {
-            name: "search_web",
-            description: "Open Google Search in browser",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                query: { type: "STRING" }
-              },
-              required: ["query"]
-            }
-          },
-          {
-            name: "open_whatsapp",
-            description: "Open WhatsApp chat with prefilled message",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                phone_number: { type: "STRING" },
-                message: { type: "STRING" }
-              },
-              required: ["phone_number", "message"]
-            }
-          },
-          {
-            name: "toggle_flashlight",
-            description: "Turn flashlight on or off",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                state: { type: "BOOLEAN" }
-              },
-              required: ["state"]
-            }
-          },
-          {
-            name: "set_volume",
-            description: "Set volume (0 to 100)",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                level_percent: { type: "INTEGER" }
-              },
-              required: ["level_percent"]
-            }
-          },
-          {
-            name: "navigate_system",
-            description: "System navigation (home, back, recents, lock, notifications)",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                action: { type: "STRING", enum: ["home", "back", "recents", "notifications", "quick_settings", "lock"] }
-              },
-              required: ["action"]
-            }
-          },
-          {
-            name: "make_phone_call",
-            description: "Call a phone number",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                phone_number: { type: "STRING" }
-              },
-              required: ["phone_number"]
-            }
-          },
-          {
-            name: "send_sms",
-            description: "Send an SMS text message",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                phone_number: { type: "STRING" },
-                message: { type: "STRING" }
-              },
-              required: ["phone_number", "message"]
-            }
-          }
-        ]
-      }
-    ];
-
-    connectBtn.addEventListener("click", async () => {
+    // Native Engine Session Trigger
+    connectBtn.addEventListener("click", () => {
       const key = apiKeyInput.value.trim();
       if (!key) {
         settingsSheet.classList.add("open");
@@ -1018,212 +887,27 @@ AUTONOMOUS EXECUTION PROTOCOL:
       }
       try { localStorage.setItem("gemini_live_key", key); } catch(e) {}
 
-      resetInactivityTimer();
-      setVisualState("idle", "Connecting...", "Initializing");
+      window.setVisualState("idle", "Connecting...", "Native Engine");
 
-      const useBtPriority = btPriorityToggle.checked;
-      const audioConstraints = useBtPriority
-        ? { channelCount: 1, sampleRate: 16000, echoCancellation: false, noiseSuppression: false, autoGainControl: false }
-        : { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true };
-
-      try {
-        micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
-      } catch (err) {
-        setVisualState("idle", "Mic Blocked", "Access Denied");
-        return;
+      if (window.AndroidBridge && window.AndroidBridge.startLiveSession) {
+        window.AndroidBridge.startLiveSession(
+          key,
+          modelSelect.value,
+          voiceSelect.value,
+          systemPromptInput.value,
+          JSON.stringify(DEVICE_TOOLS_SCHEMA)
+        );
       }
-
-      const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
-      audioCtx = new AudioCtxClass({ sampleRate: 24000 });
-      if (audioCtx.state === "suspended") await audioCtx.resume();
-
-      const chosenModel = modelSelect.value.trim();
-      const endpoint = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(key)}`;
-
-      try {
-        ws = new WebSocket(endpoint);
-      } catch (e) {
-        return;
-      }
-
-      ws.onopen = () => {
-        const promptText = systemPromptInput.value.trim();
-        const setupPayload = {
-          setup: {
-            model: chosenModel,
-            generationConfig: {
-              responseModalities: ["AUDIO"],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: voiceSelect.value }
-                }
-              }
-            },
-            ...(promptText ? { systemInstruction: { parts: [{ text: promptText }] } } : {}),
-            tools: deviceTools
-          }
-        };
-
-        ws.send(JSON.stringify(setupPayload));
-        startMicCapture();
-
-        connectBtn.classList.add("hidden");
-        liveControls.classList.remove("hidden");
-        setVisualState("listening", "Listening", "Go ahead");
-      };
-
-      ws.onmessage = async (evt) => {
-        let raw = evt.data;
-        if (raw instanceof Blob) raw = await raw.text();
-        try {
-          const res = JSON.parse(raw);
-          handleServerTurn(res);
-        } catch(e) {}
-      };
-
-      ws.onclose = () => cleanUpSession();
     });
 
-    async function executeLocalTool(name, args, id) {
-      resetInactivityTimer();
-      autonomousStepCount++;
-
-      const actionDesc = getActionDescription(name, args);
-      setVisualState("working", `Working • Step ${autonomousStepCount}`, actionDesc);
-
-      if (window.AndroidBridge && window.AndroidBridge.showTaskProgress) {
-        window.AndroidBridge.showTaskProgress(autonomousStepCount, actionDesc);
+    disconnectBtn.addEventListener("click", () => {
+      stopCameraVision();
+      if (window.AndroidBridge && window.AndroidBridge.stopLiveSession) {
+        window.AndroidBridge.stopLiveSession();
       }
+    });
 
-      if (autonomousStepCount > 10) {
-        sendToolResponse(id, "Safety limit reached. Pausing autonomous loop.");
-        autonomousStepCount = 0;
-        return;
-      }
-
-      let result = "Action completed";
-      try {
-        if (!window.AndroidBridge) {
-          result = "Android native bridge not ready.";
-        } else if (name === "save_app_rule") {
-          const pkg = (args.app_package || "").trim();
-          if (pkg) {
-            if (!activePlaybooks[pkg]) activePlaybooks[pkg] = { actions: {}, rules: [] };
-            if (args.action_name && (args.x !== undefined || args.y !== undefined)) {
-              activePlaybooks[pkg].actions[args.action_name] = { x: args.x || 0, y: args.y || 0 };
-            }
-            if (args.rule) {
-              activePlaybooks[pkg].rules.push(args.rule);
-            }
-            localStorage.setItem("jarvis_app_rules", JSON.stringify(activePlaybooks, null, 2));
-            rulesEditor.value = JSON.stringify(activePlaybooks, null, 2);
-            if (window.AndroidBridge.saveRulesToFile) {
-              window.AndroidBridge.saveRulesToFile(JSON.stringify(activePlaybooks, null, 2));
-            }
-            result = `Saved rule for ${pkg} successfully into persistent memory.`;
-          } else {
-            result = "Error: App package required.";
-          }
-        } else if (name === "create_note") {
-          result = window.AndroidBridge.createNote(args.text || "");
-        } else if (name === "type_text") {
-          result = window.AndroidBridge.typeText(args.text || "");
-        } else if (name === "tap_element") {
-          result = window.AndroidBridge.tapElement(args.label || "");
-        } else if (name === "tap_coordinates") {
-          result = window.AndroidBridge.tapCoordinates(args.x || 0, args.y || 0);
-        } else if (name === "long_press") {
-          result = window.AndroidBridge.longPress(args.x || 0, args.y || 0);
-        } else if (name === "scroll") {
-          result = window.AndroidBridge.scroll(args.direction || "down");
-        } else if (name === "swipe") {
-          result = window.AndroidBridge.swipe(args.start_x || 0, args.start_y || 0, args.end_x || 0, args.end_y || 0, args.duration_ms || 300);
-        } else if (name === "wait_seconds") {
-          const s = Math.min(Math.max(args.seconds || 1, 0.5), 4);
-          await new Promise(r => setTimeout(r, s * 1000));
-          result = "Waited " + s + " seconds.";
-        } else if (name === "read_screen_text") {
-          let screenRaw = window.AndroidBridge.readScreenText();
-
-          // Inject any matching playbook memory rules for the active app
-          let matchedRules = "";
-          for (const [pkg, data] of Object.entries(activePlaybooks)) {
-            if (screenRaw.includes(pkg) || screenRaw.toLowerCase().includes((data.app_name || "").toLowerCase())) {
-              matchedRules += `\n[PLAYBOOK TIP FOR ${data.app_name || pkg}]:\n`;
-              if (data.actions) {
-                for (const [act, coords] of Object.entries(data.actions)) {
-                  matchedRules += `- Target "${act}" is at exact coordinates (${coords.x}, ${coords.y})\n`;
-                }
-              }
-              if (data.rules) {
-                for (const r of data.rules) matchedRules += `- Rule: ${r}\n`;
-              }
-            }
-          }
-
-          if (matchedRules) {
-            result = `=== ACTIVE APP PLAYBOOK & MEMORY ===${matchedRules}\n\n${screenRaw}`;
-          } else {
-            result = screenRaw;
-          }
-        } else if (name === "capture_screen") {
-          const b64 = window.AndroidBridge.captureScreen();
-          if (b64 && b64.length > 100) {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({
-                realtimeInput: {
-                  video: { data: b64, mimeType: "image/jpeg" }
-                }
-              }));
-            }
-            result = "Screenshot captured and injected into your visual feed.";
-          } else {
-            result = b64 || "Failed to capture screenshot.";
-          }
-        } else if (name === "open_application") {
-          result = window.AndroidBridge.openApp(args.app_name || "");
-        } else if (name === "search_contacts") {
-          result = window.AndroidBridge.searchContacts(args.query || "");
-        } else if (name === "search_youtube") {
-          result = window.AndroidBridge.searchYouTube(args.query || "");
-        } else if (name === "search_web") {
-          result = window.AndroidBridge.searchWeb(args.query || "");
-        } else if (name === "open_whatsapp") {
-          result = window.AndroidBridge.openWhatsAppChat(args.phone_number || "", args.message || "");
-        } else if (name === "toggle_flashlight") {
-          result = window.AndroidBridge.toggleFlashlight(!!args.state);
-        } else if (name === "set_volume") {
-          result = window.AndroidBridge.setVolume(args.level_percent || 50);
-        } else if (name === "navigate_system") {
-          result = window.AndroidBridge.navigateSystem(args.action || "home");
-        } else if (name === "make_phone_call") {
-          result = window.AndroidBridge.makePhoneCall(args.phone_number || "");
-        } else if (name === "send_sms") {
-          result = window.AndroidBridge.sendSms(args.phone_number || "", args.message || "");
-        }
-      } catch (err) {
-        result = "Error executing tool: " + err.message;
-      }
-
-      sendToolResponse(id, result);
-    }
-
-    function sendToolResponse(id, result) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        const payload = {
-          toolResponse: {
-            functionResponses: [
-              {
-                id: id || "call_1",
-                response: { output: { result: String(result) } }
-              }
-            ]
-          }
-        };
-        ws.send(JSON.stringify(payload));
-      }
-    }
-
+    // Camera Vision Feed (Streams 1 FPS JPEG directly to Native WebSocket)
     toggleCameraBtn.addEventListener("click", async () => {
       if (!isCameraActive) {
         await startCameraVision();
@@ -1235,7 +919,7 @@ AUTONOMOUS EXECUTION PROTOCOL:
     async function startCameraVision() {
       try {
         cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: currentFacingMode, width: { ideal: 320 }, height: { ideal: 240 } },
+          video: { facingMode: currentFacingMode, width: { ideal: 288 }, height: { ideal: 592 } },
           audio: false
         });
         cameraVideo.srcObject = cameraStream;
@@ -1265,233 +949,28 @@ AUTONOMOUS EXECUTION PROTOCOL:
     function startCameraStreaming() {
       if (cameraInterval) clearInterval(cameraInterval);
       cameraInterval = setInterval(() => {
-        if (!ws || ws.readyState !== WebSocket.OPEN || !cameraStream || !isCameraActive) return;
-        if (cameraVideo.readyState < 2 || cameraVideo.videoWidth === 0) return;
+        if (!cameraStream || !isCameraActive || cameraVideo.readyState < 2 || cameraVideo.videoWidth === 0) return;
 
-        offscreenCtx.drawImage(cameraVideo, 0, 0, 320, 240);
-        const dataUrl = offscreenCanvas.toDataURL("image/jpeg", 0.5);
+        offscreenCtx.drawImage(cameraVideo, 0, 0, 288, 592);
+        const dataUrl = offscreenCanvas.toDataURL("image/jpeg", 0.6);
         const parts = dataUrl.split(",");
         if (parts.length < 2) return;
 
-        ws.send(JSON.stringify({
-          realtimeInput: {
-            video: { data: parts[1].trim(), mimeType: "image/jpeg" }
-          }
-        }));
-      }, 1500);
-    }
-
-    function startMicCapture() {
-      const micCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const source = micCtx.createMediaStreamSource(micStream);
-
-      micProcessor = micCtx.createScriptProcessor(2048, 1, 1);
-      micProcessor.onaudioprocess = (e) => {
-        if (!ws || ws.readyState !== WebSocket.OPEN) return;
-        if (echoGuardToggle.checked && isModelSpeaking) return;
-        if (isMuted) return;
-
-        const channel = e.inputBuffer.getChannelData(0);
-
-        let sum = 0;
-        for (let i = 0; i < channel.length; i++) sum += channel[i] * channel[i];
-        if (Math.sqrt(sum / channel.length) > 0.02) {
-          resetInactivityTimer();
-          autonomousStepCount = 0;
+        if (window.AndroidBridge && window.AndroidBridge.sendCameraFrame) {
+          window.AndroidBridge.sendCameraFrame(parts[1].trim());
         }
-
-        const downsampled = downsample(channel, micCtx.sampleRate, 16000);
-        const pcm16 = toPCM16(downsampled);
-        const b64 = bufferToBase64(pcm16);
-
-        ws.send(JSON.stringify({
-          realtimeInput: {
-            audio: { data: b64, mimeType: "audio/pcm;rate=16000" }
-          }
-        }));
-      };
-
-      source.connect(micProcessor);
-      micProcessor.connect(micCtx.destination);
-    }
-
-    function handleServerTurn(msg) {
-      if (msg.toolCall && msg.toolCall.functionCalls) {
-        resetInactivityTimer();
-        for (const call of msg.toolCall.functionCalls) {
-          executeLocalTool(call.name, call.args, call.id);
-        }
-      }
-
-      if (!msg.serverContent) return;
-
-      if (msg.serverContent.interrupted) {
-        stopAudioPlayback();
-        isModelSpeaking = false;
-        setVisualState("listening", "Listening", "Go ahead");
-        resetInactivityTimer();
-        return;
-      }
-
-      const parts = msg.serverContent.modelTurn?.parts;
-      if (parts) {
-        for (const part of parts) {
-          if (part.functionCall) {
-            resetInactivityTimer();
-            executeLocalTool(part.functionCall.name, part.functionCall.args, part.functionCall.id || "1");
-          }
-          const b64 = part.inlineData?.data || part.data;
-          if (b64) {
-            resetInactivityTimer();
-            if (echoCooldownTimer) {
-              clearTimeout(echoCooldownTimer);
-              echoCooldownTimer = null;
-            }
-            isModelSpeaking = true;
-            playPCM(b64);
-          }
-        }
-      }
-
-      if (msg.serverContent.turnComplete) scheduleTurnEnd();
-    }
-
-    function playPCM(base64Audio) {
-      setVisualState("speaking", "Speaking", "Jarvis...");
-
-      if (audioCtx && audioCtx.state === "suspended") {
-        audioCtx.resume();
-      }
-
-      const binary = atob(base64Audio);
-      const len = binary.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-
-      const pcm16 = new Int16Array(bytes.buffer);
-      const float32 = new Float32Array(pcm16.length);
-      for (let i = 0; i < pcm16.length; i++) float32[i] = pcm16[i] / 32768.0;
-
-      const buffer = audioCtx.createBuffer(1, float32.length, 24000);
-      buffer.copyToChannel(float32, 0);
-
-      const src = audioCtx.createBufferSource();
-      src.buffer = buffer;
-      src.connect(audioCtx.destination);
-
-      const now = audioCtx.currentTime;
-      if (nextAudioTime < now) nextAudioTime = now + 0.05;
-      src.start(nextAudioTime);
-      nextAudioTime += buffer.duration;
-
-      activeSources.push(src);
-      src.onended = () => {
-        const idx = activeSources.indexOf(src);
-        if (idx !== -1) activeSources.splice(idx, 1);
-        if (activeSources.length === 0) scheduleTurnEnd();
-      };
-    }
-
-    function scheduleTurnEnd() {
-      if (activeSources.length > 0) return;
-      if (echoCooldownTimer) clearTimeout(echoCooldownTimer);
-      echoCooldownTimer = setTimeout(() => {
-        isModelSpeaking = false;
-        echoCooldownTimer = null;
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          setVisualState("listening", "Listening", "Go ahead");
-          startInactivityCountdown();
-        }
-      }, 350);
-    }
-
-    function stopAudioPlayback() {
-      activeSources.forEach(s => { try { s.stop(); } catch(e){} });
-      activeSources = [];
-      if (audioCtx) nextAudioTime = audioCtx.currentTime;
-    }
-
-    function downsample(buf, inRate, outRate) {
-      if (inRate === outRate) return buf;
-      const ratio = inRate / outRate;
-      const len = Math.round(buf.length / ratio);
-      const out = new Float32Array(len);
-      let oR = 0, oB = 0;
-      while (oR < len) {
-        const next = Math.round((oR + 1) * ratio);
-        let sum = 0, count = 0;
-        for (let i = oB; i < next && i < buf.length; i++) { sum += buf[i]; count++; }
-        out[oR] = count > 0 ? sum / count : 0;
-        oR++;
-        oB = next;
-      }
-      return out;
-    }
-
-    function toPCM16(input) {
-      const out = new Int16Array(input.length);
-      for (let i = 0; i < input.length; i++) {
-        const s = Math.max(-1, Math.min(1, input[i]));
-        out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-      }
-      return out.buffer;
-    }
-
-    function bufferToBase64(buffer) {
-      let bin = "";
-      const bytes = new Uint8Array(buffer);
-      for (let i = 0; i < bytes.byteLength; i += 1024) {
-        bin += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + 1024, bytes.byteLength)));
-      }
-      return window.btoa(bin);
-    }
-
-    muteBtn.addEventListener("click", () => {
-      isMuted = !isMuted;
-      muteBtn.classList.toggle("muted", isMuted);
-    });
-
-    disconnectBtn.addEventListener("click", () => {
-      resetInactivityTimer();
-      if (ws) ws.close();
-      cleanUpSession();
-      if (window.AndroidBridge && window.AndroidBridge.closeApp) {
-        window.AndroidBridge.closeApp();
-      }
-    });
-
-    function cleanUpSession() {
-      resetInactivityTimer();
-      stopAudioPlayback();
-      stopCameraVision();
-      if (echoCooldownTimer) clearTimeout(echoCooldownTimer);
-      isModelSpeaking = false;
-      autonomousStepCount = 0;
-
-      if (micStream) {
-        micStream.getTracks().forEach(t => t.stop());
-        micStream = null;
-      }
-      if (micProcessor) {
-        micProcessor.disconnect();
-        micProcessor = null;
-      }
-      isMuted = false;
-      muteBtn.classList.remove("muted");
-      connectBtn.classList.remove("hidden");
-      liveControls.classList.add("hidden");
-      setVisualState("idle", "Voice", "Ready");
+      }, 1000);
     }
 
     window.autoConnectOnWake = function() {
-      if (autoConnectToggle.checked && apiKeyInput.value.trim() && (!ws || ws.readyState !== WebSocket.OPEN)) {
+      if (autoConnectToggle.checked && apiKeyInput.value.trim()) {
         connectBtn.click();
       }
     };
 
     window.addEventListener("DOMContentLoaded", () => {
       if (autoConnectToggle.checked && apiKeyInput.value.trim()) {
-        setTimeout(() => connectBtn.click(), 250);
+        setTimeout(() => connectBtn.click(), 300);
       }
     });
   </script>

@@ -429,7 +429,7 @@ jobs:
               private void sendSetupPayload(String model, String voice, String prompt, String toolsJsonStr) {
                   try {
                       JSONObject setup = new JSONObject();
-                      setup.put("model", model.trim().isEmpty() ? "models/gemini-2.0-flash-exp" : model.trim());
+                      setup.put("model", model.trim().isEmpty() ? "models/gemini-3.1-flash-live-preview" : model.trim());
 
                       JSONObject voiceConfig = new JSONObject();
                       voiceConfig.put("voiceName", voice.trim().isEmpty() ? "Puck" : voice.trim());
@@ -544,6 +544,8 @@ jobs:
                   try {
                       if (MainActivity.instance == null) {
                           result = "Bridge unavailable";
+                      } else if ("search_live_web".equals(name)) {
+                        result = MainActivity.instance.bridgeSearchLiveWeb(args.optString("query", ""));
                       } else if ("tap_element_id".equals(name)) {
                           int id = args.optInt("element_id", -1);
                           result = MainActivity.instance.bridgeTapElementId(id);
@@ -1298,7 +1300,7 @@ jobs:
                   // Setup Lean WebView (UI Only - ~35MB RAM)
                   webView = new WebView(this);
                   webView.setBackgroundColor(Color.TRANSPARENT);
-                  webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+                  webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
                   setContentView(webView);
 
                   WebSettings s = webView.getSettings();
@@ -1388,6 +1390,39 @@ jobs:
               }
 
               // Native Bridge Methods Called Directly by GeminiLiveClient
+              // Fast 200ms real-time search grounding using existing OkHttp
+            public String bridgeSearchLiveWeb(String query) {
+                try {
+                    okhttp3.Request req = new okhttp3.Request.Builder()
+                        .url("https://html.duckduckgo.com/html/?q=" + Uri.encode(query))
+                        .header("User-Agent", "Mozilla/5.0 (Android 10; Mobile)")
+                        .build();
+
+                    okhttp3.Response resp = new okhttp3.OkHttpClient().newCall(req).execute();
+                    if (!resp.isSuccessful()) return "Search request failed.";
+                    String html = resp.body().string();
+
+                    StringBuilder sb = new StringBuilder();
+                    int start = 0;
+                    int count = 0;
+                    while ((start = html.indexOf("class=\"result__snippet\"", start)) != -1 && count < 3) {
+                        int tagClose = html.indexOf(">", start);
+                        int end = html.indexOf("</a>", tagClose);
+                        if (tagClose != -1 && end != -1) {
+                            String snippet = html.substring(tagClose + 1, end).replaceAll("<[^>]*>", "").trim();
+                            if (!snippet.isEmpty()) {
+                                sb.append("- ").append(snippet).append("\n");
+                                count++;
+                            }
+                        }
+                        start += 25;
+                    }
+                    String res = sb.toString().trim();
+                    return res.isEmpty() ? "No instant live results found." : res;
+                } catch (Exception e) {
+                    return "Search error: " + e.getMessage();
+                }
+            }
               public String bridgeTapElementId(int id) {
                   if (VolumeTriggerService.instance == null) return "Accessibility Service required.";
                   boolean ok = VolumeTriggerService.instance.tapElementId(id);

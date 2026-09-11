@@ -405,7 +405,7 @@ jobs:
                       public void onOpen(WebSocket ws, Response response) {
                           isConnected = true;
                           sendSetupPayload(model, voice, prompt, toolsJsonStr);
-                       if (uiListener != null) uiListener.onStateChanged("idle", "Connecting...", "Handshake");
+                          if (uiListener != null) uiListener.onStateChanged("idle", "Connecting...", "Handshake");
                       }
 
                       @Override
@@ -416,14 +416,14 @@ jobs:
                       @Override
                       public void onFailure(WebSocket ws, Throwable t, Response response) {
                           isConnected = false;
-                          audioPipeline.stopPlayback();
-                          if (uiListener != null) uiListener.onStateChanged("idle", "Connection Failed", t.getMessage());
+                          if (audioPipeline != null) audioPipeline.stopPlayback();
+                          if (uiListener != null) uiListener.onStateChanged("idle", "Connection Failed", t != null ? t.getMessage() : "Error");
                       }
 
                       @Override
                       public void onClosed(WebSocket ws, int code, String reason) {
                           isConnected = false;
-                          audioPipeline.stopPlayback();
+                          if (audioPipeline != null) audioPipeline.stopPlayback();
                           if (uiListener != null) uiListener.onStateChanged("idle", "Voice", "Ready");
                       }
                   });
@@ -432,10 +432,10 @@ jobs:
               private void sendSetupPayload(String model, String voice, String prompt, String toolsJsonStr) {
                   try {
                       JSONObject setup = new JSONObject();
-                      setup.put("model", model.trim().isEmpty() ? "models/gemini-3.1-flash-live-preview" : model.trim());
+                      setup.put("model", (model != null && !model.trim().isEmpty()) ? model.trim() : "models/gemini-3.1-flash-live-preview");
 
                       JSONObject voiceConfig = new JSONObject();
-                      voiceConfig.put("voiceName", voice.trim().isEmpty() ? "Puck" : voice.trim());
+                      voiceConfig.put("voiceName", (voice != null && !voice.trim().isEmpty()) ? voice.trim() : "Puck");
                       JSONObject speechConfig = new JSONObject();
                       speechConfig.put("voiceConfig", new JSONObject().put("prebuiltVoiceConfig", voiceConfig));
 
@@ -485,20 +485,17 @@ jobs:
               }
 
               private void handleIncomingMessage(String jsonStr) {
-               try {
-                   JSONObject root = new JSONObject(jsonStr);
-
-                   // Wait for setupComplete before starting mic stream!
-                   if (root.has("setupComplete")) {
-                       audioPipeline.startCapture();
-                       if (uiListener != null) uiListener.onStateChanged("listening", "Listening", "Go ahead");
-                       return;
-                   }
-              private void handleIncomingMessage(String jsonStr) {
                   try {
                       JSONObject root = new JSONObject(jsonStr);
 
-                      // Tool Calls: Executed directly on native thread (0ms latency!)
+                      // Wait for setupComplete before starting mic stream!
+                      if (root.has("setupComplete")) {
+                          if (audioPipeline != null) audioPipeline.startCapture();
+                          if (uiListener != null) uiListener.onStateChanged("listening", "Listening", "Go ahead");
+                          return;
+                      }
+
+                      // Native Tool Calls (0ms hop)
                       if (root.has("toolCall")) {
                           JSONObject toolCall = root.getJSONObject("toolCall");
                           if (toolCall.has("functionCalls")) {
@@ -514,7 +511,7 @@ jobs:
                       JSONObject serverContent = root.getJSONObject("serverContent");
 
                       if (serverContent.optBoolean("interrupted", false)) {
-                          audioPipeline.stopPlayback();
+                          if (audioPipeline != null) audioPipeline.stopPlayback();
                           if (uiListener != null) uiListener.onStateChanged("listening", "Listening", "Go ahead");
                           return;
                       }
@@ -537,7 +534,7 @@ jobs:
                                   }
                                   if (b64Audio != null) {
                                       byte[] pcmBytes = Base64.decode(b64Audio, Base64.NO_WRAP);
-                                      audioPipeline.playPcmChunk(pcmBytes);
+                                      if (audioPipeline != null) audioPipeline.playPcmChunk(pcmBytes);
                                   }
                               }
                           }
@@ -549,7 +546,6 @@ jobs:
                   } catch (Exception ignored) {}
               }
 
-              // Direct Native Tool Execution (Zero hops through WebView!)
               private void executeNativeTool(String name, JSONObject args, String callId) {
                   String result = "Completed";
                   if (args == null) args = new JSONObject();
@@ -558,7 +554,7 @@ jobs:
                       if (MainActivity.instance == null) {
                           result = "Bridge unavailable";
                       } else if ("search_live_web".equals(name)) {
-                        result = MainActivity.instance.bridgeSearchLiveWeb(args.optString("query", ""));
+                          result = MainActivity.instance.bridgeSearchLiveWeb(args.optString("query", ""));
                       } else if ("tap_element_id".equals(name)) {
                           int id = args.optInt("element_id", -1);
                           result = MainActivity.instance.bridgeTapElementId(id);

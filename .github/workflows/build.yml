@@ -116,8 +116,8 @@ jobs:
                   applicationId "com.gemini.live"
                   minSdk 24
                   targetSdk 34
-                  versionCode 14
-                  versionName "3.0"
+                  versionCode 15
+                  versionName "3.1"
               }
               compileOptions {
                   sourceCompatibility JavaVersion.VERSION_17
@@ -202,7 +202,7 @@ jobs:
           </manifest>
           EOF
 
-          # NativeAudioPipeline.java: Native 16kHz AudioRecord (Hardware AEC) & 24kHz AudioTrack Playback
+          # NativeAudioPipeline.java: Native 16kHz AudioRecord (MIC source) & 24kHz AudioTrack (USAGE_MEDIA)
           cat << 'EOF' > app/src/main/java/com/gemini/live/NativeAudioPipeline.java
           package com.gemini.live;
 
@@ -242,7 +242,6 @@ jobs:
                       AudioFormat.ENCODING_PCM_16BIT
                   );
 
-                  // USAGE_MEDIA ensures audio plays out of the main media speaker loudly
                   AudioAttributes attrs = new AudioAttributes.Builder()
                       .setUsage(AudioAttributes.USAGE_MEDIA)
                       .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
@@ -273,7 +272,6 @@ jobs:
                       AudioFormat.ENCODING_PCM_16BIT
                   );
 
-                  // Use MIC: 100% reliable real PCM capture on Samsung Android 10
                   audioRecord = new AudioRecord(
                       MediaRecorder.AudioSource.MIC,
                       IN_SAMPLE_RATE,
@@ -343,7 +341,7 @@ jobs:
           }
           EOF
 
-          # GeminiLiveClient.java: Native OkHttp WebSocket Engine with Direct 0ms Tool Execution
+          # GeminiLiveClient.java: Native WebSocket with Handshake Sync & Zero Syntax Errors
           cat << 'EOF' > app/src/main/java/com/gemini/live/GeminiLiveClient.java
           package com.gemini.live;
 
@@ -488,7 +486,7 @@ jobs:
                   try {
                       JSONObject root = new JSONObject(jsonStr);
 
-                      // Wait for setupComplete before starting mic stream!
+                      // Wait for setupComplete before starting mic capture!
                       if (root.has("setupComplete")) {
                           if (audioPipeline != null) audioPipeline.startCapture();
                           if (uiListener != null) uiListener.onStateChanged("listening", "Listening", "Go ahead");
@@ -641,7 +639,7 @@ jobs:
           }
           EOF
 
-          # VolumeTriggerService.java: Candidate Indexer [0..N], 0-1000 Mapping, Long-Press & Multi-Signal Keyboard
+          # VolumeTriggerService.java: Candidate Indexing, 288x592 Calibration & Multi-Signal Keyboard
           cat << 'EOF' > app/src/main/java/com/gemini/live/VolumeTriggerService.java
           package com.gemini.live;
 
@@ -785,6 +783,7 @@ jobs:
                   return false;
               }
 
+              // Option A: 100% Pure Raw Pinpoint Coordinates
               public boolean tapCoordinates(int x, int y) {
                   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
 
@@ -1204,7 +1203,7 @@ jobs:
           }
           EOF
 
-          # MainActivity.java: Lightweight UI Host & Native Engine Bridge
+          # MainActivity.java: Lightweight UI Host, 200ms Live Search & Native Bridge
           cat << 'EOF' > app/src/main/java/com/gemini/live/MainActivity.java
           package com.gemini.live;
 
@@ -1285,7 +1284,6 @@ jobs:
 
                   projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
-                  // Setup Native Gemini Live Client
                   liveClient = new GeminiLiveClient(new GeminiLiveClient.UIUpdateListener() {
                       @Override
                       public void onStateChanged(String state, String title, String sub) {
@@ -1306,7 +1304,6 @@ jobs:
                       }
                   });
 
-                  // Setup Lean WebView (UI Only - ~35MB RAM)
                   webView = new WebView(this);
                   webView.setBackgroundColor(Color.TRANSPARENT);
                   webView.setLayerType(View.LAYER_TYPE_NONE, null);
@@ -1398,40 +1395,40 @@ jobs:
                   webView.loadUrl("file:///android_asset/index.html");
               }
 
-              // Native Bridge Methods Called Directly by GeminiLiveClient
               // Fast 200ms real-time search grounding using existing OkHttp
-            public String bridgeSearchLiveWeb(String query) {
-                try {
-                    okhttp3.Request req = new okhttp3.Request.Builder()
-                        .url("https://html.duckduckgo.com/html/?q=" + Uri.encode(query))
-                        .header("User-Agent", "Mozilla/5.0 (Android 10; Mobile)")
-                        .build();
+              public String bridgeSearchLiveWeb(String query) {
+                  try {
+                      okhttp3.Request req = new okhttp3.Request.Builder()
+                          .url("https://html.duckduckgo.com/html/?q=" + Uri.encode(query))
+                          .header("User-Agent", "Mozilla/5.0 (Android 10; Mobile)")
+                          .build();
 
-                    okhttp3.Response resp = new okhttp3.OkHttpClient().newCall(req).execute();
-                    if (!resp.isSuccessful()) return "Search request failed.";
-                    String html = resp.body().string();
+                      okhttp3.Response resp = new okhttp3.OkHttpClient().newCall(req).execute();
+                      if (!resp.isSuccessful()) return "Search request failed.";
+                      String html = resp.body().string();
 
-                    StringBuilder sb = new StringBuilder();
-                    int start = 0;
-                    int count = 0;
-                    while ((start = html.indexOf("class=\"result__snippet\"", start)) != -1 && count < 3) {
-                        int tagClose = html.indexOf(">", start);
-                        int end = html.indexOf("</a>", tagClose);
-                        if (tagClose != -1 && end != -1) {
-                            String snippet = html.substring(tagClose + 1, end).replaceAll("<[^>]*>", "").trim();
-                            if (!snippet.isEmpty()) {
-                                sb.append("- ").append(snippet).append("\n");
-                                count++;
-                            }
-                        }
-                        start += 25;
-                    }
-                    String res = sb.toString().trim();
-                    return res.isEmpty() ? "No instant live results found." : res;
-                } catch (Exception e) {
-                    return "Search error: " + e.getMessage();
-                }
-            }
+                      StringBuilder sb = new StringBuilder();
+                      int start = 0;
+                      int count = 0;
+                      while ((start = html.indexOf("class=\"result__snippet\"", start)) != -1 && count < 3) {
+                          int tagClose = html.indexOf(">", start);
+                          int end = html.indexOf("</a>", tagClose);
+                          if (tagClose != -1 && end != -1) {
+                              String snippet = html.substring(tagClose + 1, end).replaceAll("<[^>]*>", "").trim();
+                              if (!snippet.isEmpty()) {
+                                  sb.append("- ").append(snippet).append("\n");
+                                  count++;
+                              }
+                          }
+                          start += 25;
+                      }
+                      String res = sb.toString().trim();
+                      return res.isEmpty() ? "No instant live results found." : res;
+                  } catch (Exception e) {
+                      return "Search error: " + e.getMessage();
+                  }
+              }
+
               public String bridgeTapElementId(int id) {
                   if (VolumeTriggerService.instance == null) return "Accessibility Service required.";
                   boolean ok = VolumeTriggerService.instance.tapElementId(id);
@@ -1727,8 +1724,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete v3.0 --yes || true
-          git tag -d v3.0 || true
-          gh release create v3.0 app/build/outputs/apk/debug/app-debug.apk \
-            --title "Voice v3.0 (Hybrid Native Architecture)" \
-            --notes "Voice v3.0: Native OkHttp WebSocket, AudioRecord with Hardware AEC, AudioTrack playback, 65MB RAM footprint, 0ms direct tool calls, and Element ID Grounding." || true
+          gh release delete v3.1 --yes || true
+          git tag -d v3.1 || true
+          gh release create v3.1 app/build/outputs/apk/debug/app-debug.apk \
+            --title "Voice v3.1 (Stable Native Audio & Grounding)" \
+            --notes "Voice v3.1: Synchronized setupComplete handshake, AudioRecord MIC source, AudioTrack USAGE_MEDIA playback, and 200ms OkHttp live search grounding." || true

@@ -303,7 +303,7 @@
       transform: translateY(102%);
       transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
       z-index: 30;
-      max-height: 82vh;
+      max-height: 85vh;
       overflow-y: auto;
       color: var(--text);
     }
@@ -353,6 +353,40 @@
       text-align: left;
     }
     .action-card-btn:active { background: rgba(168, 85, 247, 0.22); }
+
+    .memory-section {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 14px;
+      margin-top: 14px;
+      margin-bottom: 14px;
+    }
+
+    .memory-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .btn-sm {
+      background: rgba(168, 85, 247, 0.25);
+      border: 1px solid rgba(168, 85, 247, 0.6);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.74rem;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-sm:active { transform: scale(0.95); background: rgba(168, 85, 247, 0.4); }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
 
     .hidden { display: none !important; }
   </style>
@@ -411,7 +445,7 @@
   <div class="sheet" id="settingsSheet">
     <div class="sheet-handle"></div>
     <div class="sheet-head">
-      <div class="sheet-title">Configuration</div>
+      <div class="sheet-title">Configuration & Knowledge</div>
       <button class="icon-btn" id="closeSettingsBtn" style="border:none;">✕</button>
     </div>
 
@@ -421,6 +455,21 @@
         <div style="font-size: 0.72rem; opacity: 0.8; margin-top: 2px;">Tap to open Accessibility & turn on Voice trigger</div>
       </div>
       <span style="font-size: 1.2rem;">➔</span>
+    </div>
+
+    <!-- App Playbook & Memory Editor -->
+    <div class="memory-section">
+      <div class="memory-header">
+        <div>
+          <div style="font-weight: 600; font-size: 0.82rem;">🧠 App Playbooks & Memory</div>
+          <div style="font-size: 0.7rem; color: var(--text-dim); margin-top: 2px;">Exact coordinates & self-learned app rules</div>
+        </div>
+      </div>
+      <textarea id="rulesEditor" rows="7" style="font-family: monospace; font-size: 0.72rem; white-space: pre; margin-top: 6px;"></textarea>
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button class="btn-sm" id="saveRulesBtn">💾 Save Rules</button>
+        <button class="btn-sm btn-secondary" id="openFileManagerBtn">📁 Open in My Files</button>
+      </div>
     </div>
 
     <div class="field">
@@ -501,19 +550,46 @@
   <canvas id="offscreenCanvas" class="hidden" width="320" height="240"></canvas>
 
   <script>
-    const JARVIS_DEFAULT_PROMPT = `You are Voice (Jarvis), an ultra-fast autonomous Android agent with direct device control.
+    const DEFAULT_APP_RULES = {
+      "com.samsung.android.app.notes": {
+        "app_name": "Samsung Notes",
+        "actions": {
+          "add_note_button": { "x": 875, "y": 935 }
+        },
+        "rules": [
+          "To create a new note, tap the circular pen button at (875, 935).",
+          "If the cursor is already blinking, do not tap; paste text directly with type_text."
+        ]
+      },
+      "com.google.android.youtube": {
+        "app_name": "YouTube",
+        "rules": [
+          "Use search_youtube for instant 1-shot searches without UI clicks."
+        ]
+      },
+      "com.whatsapp": {
+        "app_name": "WhatsApp",
+        "rules": [
+          "Use open_whatsapp to jump directly into chat with prefilled message."
+        ]
+      }
+    };
 
-AUTONOMOUS PROTOCOL:
-1. SPATIAL ACCURACY:
-   - Call read_screen_text first whenever you need to interact with an app. It returns an "INTERACTIVE ELEMENTS" catalog with exact (0-1000) coordinates!
-   - When calling tap_coordinates(x, y), always provide coordinates in normalized 0-1000 scale (e.g., x=500, y=500 is the center of the screen).
-2. TYPING & NOTES:
+    const JARVIS_DEFAULT_PROMPT = `You are Voice (Jarvis), an ultra-fast autonomous Android agent with physical device control and experiential memory.
+
+AUTONOMOUS EXECUTION PROTOCOL:
+1. SPATIAL GROUNDING & PLAYBOOKS:
+   - Call read_screen_text first whenever you interact with an app. It returns an "INTERACTIVE ELEMENTS" catalog with exact (0-1000) coordinates AND active app playbook rules!
+   - When calling tap_coordinates(x, y) or long_press(x, y), always use normalized 0 to 1000 scale (where x=500, y=500 is the dead center).
+2. SELF-LEARNING & PERSISTENT MEMORY:
+   - If you discover a working button coordinate, path, or tip in an app that has no playbook rule, call save_app_rule so you remember it forever!
+3. TYPING & NOTES:
    - For quick notes, call create_note(text) for instant zero-failure composition.
-   - For writing into open apps, text boxes, or chats, call type_text(text). It automatically pastes at the blinking cursor.
-3. HYPER-SPEED INTENTS:
+   - When writing into open apps, text boxes, or chats, call type_text(text). It automatically pastes at the blinking cursor without jumping lines.
+4. HYPER-SPEED INTENTS:
    - Use search_youtube, search_web, open_whatsapp, search_contacts, or open_application directly instead of clicking around home screens.
-4. CADENCE:
-   - Execute actions silently in sequence until the mission is finished.
+5. CADENCE:
+   - Execute actions silently in sequence until the goal is finished.
    - Speak a single, confident 1-sentence confirmation when finished.`;
 
     let ws = null;
@@ -538,6 +614,8 @@ AUTONOMOUS PROTOCOL:
     let inactivityTimer = null;
     let autonomousStepCount = 0;
 
+    let activePlaybooks = DEFAULT_APP_RULES;
+
     const apiKeyInput = document.getElementById("apiKey");
     const modelSelect = document.getElementById("modelSelect");
     const voiceSelect = document.getElementById("voiceSelect");
@@ -546,6 +624,10 @@ AUTONOMOUS PROTOCOL:
     const autoConnectToggle = document.getElementById("autoConnectToggle");
     const echoGuardToggle = document.getElementById("echoGuardToggle");
     const btPriorityToggle = document.getElementById("btPriorityToggle");
+
+    const rulesEditor = document.getElementById("rulesEditor");
+    const saveRulesBtn = document.getElementById("saveRulesBtn");
+    const openFileManagerBtn = document.getElementById("openFileManagerBtn");
 
     const connectBtn = document.getElementById("connectBtn");
     const disconnectBtn = document.getElementById("disconnectBtn");
@@ -578,7 +660,14 @@ AUTONOMOUS PROTOCOL:
       }
     };
 
+    // Load Local Rules & Settings
     try {
+      const savedRules = localStorage.getItem("jarvis_app_rules");
+      if (savedRules) {
+        activePlaybooks = JSON.parse(savedRules);
+      }
+      rulesEditor.value = JSON.stringify(activePlaybooks, null, 2);
+
       if (localStorage.getItem("gemini_live_key")) apiKeyInput.value = localStorage.getItem("gemini_live_key");
       if (localStorage.getItem("gemini_live_voice")) voiceSelect.value = localStorage.getItem("gemini_live_voice");
       if (localStorage.getItem("gemini_live_model")) modelSelect.value = localStorage.getItem("gemini_live_model");
@@ -594,6 +683,26 @@ AUTONOMOUS PROTOCOL:
       if (localStorage.getItem("gemini_live_echo_guard") !== null) echoGuardToggle.checked = localStorage.getItem("gemini_live_echo_guard") === "true";
       if (localStorage.getItem("gemini_live_bt_priority") !== null) btPriorityToggle.checked = localStorage.getItem("gemini_live_bt_priority") === "true";
     } catch(e) {}
+
+    saveRulesBtn.onclick = () => {
+      try {
+        const parsed = JSON.parse(rulesEditor.value);
+        activePlaybooks = parsed;
+        localStorage.setItem("jarvis_app_rules", JSON.stringify(activePlaybooks, null, 2));
+        if (window.AndroidBridge && window.AndroidBridge.saveRulesToFile) {
+          window.AndroidBridge.saveRulesToFile(JSON.stringify(activePlaybooks, null, 2));
+        }
+        alert("Rules saved successfully!");
+      } catch(err) {
+        alert("Invalid JSON: " + err.message);
+      }
+    };
+
+    openFileManagerBtn.onclick = () => {
+      if (window.AndroidBridge && window.AndroidBridge.openRulesInFileManager) {
+        window.AndroidBridge.openRulesInFileManager();
+      }
+    };
 
     voiceSelect.onchange = () => localStorage.setItem("gemini_live_voice", voiceSelect.value);
     modelSelect.onchange = () => localStorage.setItem("gemini_live_model", modelSelect.value);
@@ -614,6 +723,7 @@ AUTONOMOUS PROTOCOL:
 
     function getActionDescription(name, args) {
       switch(name) {
+        case "save_app_rule": return `Learning app rule...`;
         case "create_note": return `Creating note...`;
         case "open_application": return `Opening ${args.app_name || 'app'}...`;
         case "type_text": {
@@ -622,6 +732,7 @@ AUTONOMOUS PROTOCOL:
         }
         case "tap_element": return `Tapping "${args.label || 'button'}"...`;
         case "tap_coordinates": return `Tapping (${args.x}, ${args.y})...`;
+        case "long_press": return `Holding (${args.x}, ${args.y})...`;
         case "scroll": return `Scrolling ${args.direction || 'down'}...`;
         case "swipe": return `Swiping screen...`;
         case "wait_seconds": return `Waiting for UI (${args.seconds || 1}s)...`;
@@ -665,6 +776,21 @@ AUTONOMOUS PROTOCOL:
       {
         functionDeclarations: [
           {
+            name: "save_app_rule",
+            description: "Permanently save a newly learned UI button coordinate, playbook rule, or shortcut for an app so you remember it in all future sessions.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                app_package: { type: "STRING", description: "Package name or identifier (e.g. com.android.chrome)" },
+                action_name: { type: "STRING", description: "Action identifier (e.g. download_button, search_bar)" },
+                x: { type: "INTEGER", description: "Normalized X coordinate (0-1000)" },
+                y: { type: "INTEGER", description: "Normalized Y coordinate (0-1000)" },
+                rule: { type: "STRING", description: "Key lesson or tip to remember" }
+              },
+              required: ["app_package", "action_name"]
+            }
+          },
+          {
             name: "create_note",
             description: "Instantly create a note or document with the provided text body via Android intent (zero-failure).",
             parameters: {
@@ -689,6 +815,18 @@ AUTONOMOUS PROTOCOL:
           {
             name: "tap_coordinates",
             description: "Physically tap screen coordinates. Use normalized 0 to 1000 scale (where x=500, y=500 is the center of screen).",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                x: { type: "INTEGER", description: "X coordinate (0 to 1000)" },
+                y: { type: "INTEGER", description: "Y coordinate (0 to 1000)" }
+              },
+              required: ["x", "y"]
+            }
+          },
+          {
+            name: "long_press",
+            description: "Hold down / long-press on coordinates (0 to 1000) for 700ms to select text, open context menus, or trigger special actions.",
             parameters: {
               type: "OBJECT",
               properties: {
@@ -748,7 +886,7 @@ AUTONOMOUS PROTOCOL:
           },
           {
             name: "read_screen_text",
-            description: "Extract visible text AND an INTERACTIVE ELEMENTS catalog with (0-1000) coordinates.",
+            description: "Extract visible text, an INTERACTIVE ELEMENTS catalog with (0-1000) coordinates, AND active app playbook memory.",
             parameters: { type: "OBJECT", properties: {} }
           },
           {
@@ -967,6 +1105,25 @@ AUTONOMOUS PROTOCOL:
       try {
         if (!window.AndroidBridge) {
           result = "Android native bridge not ready.";
+        } else if (name === "save_app_rule") {
+          const pkg = (args.app_package || "").trim();
+          if (pkg) {
+            if (!activePlaybooks[pkg]) activePlaybooks[pkg] = { actions: {}, rules: [] };
+            if (args.action_name && (args.x !== undefined || args.y !== undefined)) {
+              activePlaybooks[pkg].actions[args.action_name] = { x: args.x || 0, y: args.y || 0 };
+            }
+            if (args.rule) {
+              activePlaybooks[pkg].rules.push(args.rule);
+            }
+            localStorage.setItem("jarvis_app_rules", JSON.stringify(activePlaybooks, null, 2));
+            rulesEditor.value = JSON.stringify(activePlaybooks, null, 2);
+            if (window.AndroidBridge.saveRulesToFile) {
+              window.AndroidBridge.saveRulesToFile(JSON.stringify(activePlaybooks, null, 2));
+            }
+            result = `Saved rule for ${pkg} successfully into persistent memory.`;
+          } else {
+            result = "Error: App package required.";
+          }
         } else if (name === "create_note") {
           result = window.AndroidBridge.createNote(args.text || "");
         } else if (name === "type_text") {
@@ -975,6 +1132,8 @@ AUTONOMOUS PROTOCOL:
           result = window.AndroidBridge.tapElement(args.label || "");
         } else if (name === "tap_coordinates") {
           result = window.AndroidBridge.tapCoordinates(args.x || 0, args.y || 0);
+        } else if (name === "long_press") {
+          result = window.AndroidBridge.longPress(args.x || 0, args.y || 0);
         } else if (name === "scroll") {
           result = window.AndroidBridge.scroll(args.direction || "down");
         } else if (name === "swipe") {
@@ -984,7 +1143,29 @@ AUTONOMOUS PROTOCOL:
           await new Promise(r => setTimeout(r, s * 1000));
           result = "Waited " + s + " seconds.";
         } else if (name === "read_screen_text") {
-          result = window.AndroidBridge.readScreenText();
+          let screenRaw = window.AndroidBridge.readScreenText();
+
+          // Inject any matching playbook memory rules for the active app
+          let matchedRules = "";
+          for (const [pkg, data] of Object.entries(activePlaybooks)) {
+            if (screenRaw.includes(pkg) || screenRaw.toLowerCase().includes((data.app_name || "").toLowerCase())) {
+              matchedRules += `\n[PLAYBOOK TIP FOR ${data.app_name || pkg}]:\n`;
+              if (data.actions) {
+                for (const [act, coords] of Object.entries(data.actions)) {
+                  matchedRules += `- Target "${act}" is at exact coordinates (${coords.x}, ${coords.y})\n`;
+                }
+              }
+              if (data.rules) {
+                for (const r of data.rules) matchedRules += `- Rule: ${r}\n`;
+              }
+            }
+          }
+
+          if (matchedRules) {
+            result = `=== ACTIVE APP PLAYBOOK & MEMORY ===${matchedRules}\n\n${screenRaw}`;
+          } else {
+            result = screenRaw;
+          }
         } else if (name === "capture_screen") {
           const b64 = window.AndroidBridge.captureScreen();
           if (b64 && b64.length > 100) {

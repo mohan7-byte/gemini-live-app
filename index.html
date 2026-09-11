@@ -94,7 +94,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 6px 10px;
+      padding: 6px 12px;
       background: var(--pill-bg);
       border: 1px solid var(--pill-border);
       border-radius: 999px;
@@ -834,6 +834,21 @@ AUTONOMOUS PROTOCOL:
       if (localStorage.getItem("gemini_live_key")) apiKeyInput.value = localStorage.getItem("gemini_live_key");
       if (localStorage.getItem("gemini_live_voice")) voiceSelect.value = localStorage.getItem("gemini_live_voice");
 
+      // Auto-revert any legacy or invalid saved model to gemini-3.1-flash-live-preview
+      if (localStorage.getItem("gemini_live_model")) {
+        const savedModel = localStorage.getItem("gemini_live_model");
+        let exists = false;
+        for (let i = 0; i < modelSelect.options.length; i++) {
+          if (modelSelect.options[i].value === savedModel) { exists = true; break; }
+        }
+        if (exists) {
+          modelSelect.value = savedModel;
+        } else {
+          modelSelect.value = "models/gemini-3.1-flash-live-preview";
+          localStorage.setItem("gemini_live_model", "models/gemini-3.1-flash-live-preview");
+        }
+      }
+
       if (localStorage.getItem("gemini_live_has_saved_prompt") === "true") {
         systemPromptInput.value = localStorage.getItem("gemini_live_system_prompt") || "";
       } else {
@@ -903,9 +918,9 @@ AUTONOMOUS PROTOCOL:
       if (window.AndroidBridge && window.AndroidBridge.startLiveSession) {
         window.AndroidBridge.startLiveSession(
           key,
-          modelSelect.value,
-          voiceSelect.value,
-          systemPromptInput.value,
+          modelSelect.value || "models/gemini-3.1-flash-live-preview",
+          voiceSelect.value || "Puck",
+          systemPromptInput.value || JARVIS_DEFAULT_PROMPT,
           JSON.stringify(DEVICE_TOOLS_SCHEMA)
         );
       }

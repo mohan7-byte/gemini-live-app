@@ -116,8 +116,8 @@ jobs:
                   applicationId "com.gemini.live"
                   minSdk 24
                   targetSdk 34
-                  versionCode 15
-                  versionName "3.1"
+                  versionCode 16
+                  versionName "3.2"
               }
               compileOptions {
                   sourceCompatibility JavaVersion.VERSION_17
@@ -202,7 +202,7 @@ jobs:
           </manifest>
           EOF
 
-          # NativeAudioPipeline.java: Native 16kHz AudioRecord (MIC source) & 24kHz AudioTrack (USAGE_MEDIA)
+          # NativeAudioPipeline.java: 16kHz AudioRecord (MIC) & 24kHz AudioTrack (USAGE_MEDIA)
           cat << 'EOF' > app/src/main/java/com/gemini/live/NativeAudioPipeline.java
           package com.gemini.live;
 
@@ -271,6 +271,7 @@ jobs:
                       AudioFormat.CHANNEL_IN_MONO,
                       AudioFormat.ENCODING_PCM_16BIT
                   );
+                  if (minBufferSize <= 0) minBufferSize = 2048;
 
                   audioRecord = new AudioRecord(
                       MediaRecorder.AudioSource.MIC,
@@ -287,7 +288,7 @@ jobs:
 
                   captureThread = new Thread(() -> {
                       android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
-                      byte[] buffer = new byte[2048]; // ~64ms chunks
+                      byte[] buffer = new byte[2048];
 
                       while (isCapturing.get()) {
                           int read = audioRecord.read(buffer, 0, buffer.length);
@@ -323,9 +324,15 @@ jobs:
 
               public synchronized void release() {
                   isCapturing.set(false);
+                  if (captureThread != null) {
+                      try { captureThread.interrupt(); } catch (Exception ignored) {}
+                      captureThread = null;
+                  }
                   if (audioRecord != null) {
                       try {
-                          audioRecord.stop();
+                          if (audioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
+                              audioRecord.stop();
+                          }
                           audioRecord.release();
                       } catch (Exception ignored) {}
                       audioRecord = null;
@@ -341,7 +348,7 @@ jobs:
           }
           EOF
 
-          # GeminiLiveClient.java: Native WebSocket with Handshake Sync & Zero Syntax Errors
+          # GeminiLiveClient.java: Synchronized Setup Handshake & Robust Session Management
           cat << 'EOF' > app/src/main/java/com/gemini/live/GeminiLiveClient.java
           package com.gemini.live;
 
@@ -415,7 +422,9 @@ jobs:
                       public void onFailure(WebSocket ws, Throwable t, Response response) {
                           isConnected = false;
                           if (audioPipeline != null) audioPipeline.stopPlayback();
-                          if (uiListener != null) uiListener.onStateChanged("idle", "Connection Failed", t != null ? t.getMessage() : "Error");
+                          String msg = t != null ? t.getMessage() : "Connection Failed";
+                          if (response != null) msg += " (HTTP " + response.code() + ")";
+                          if (uiListener != null) uiListener.onStateChanged("idle", "Failed", msg);
                       }
 
                       @Override
@@ -486,14 +495,12 @@ jobs:
                   try {
                       JSONObject root = new JSONObject(jsonStr);
 
-                      // Wait for setupComplete before starting mic capture!
                       if (root.has("setupComplete")) {
                           if (audioPipeline != null) audioPipeline.startCapture();
                           if (uiListener != null) uiListener.onStateChanged("listening", "Listening", "Go ahead");
                           return;
                       }
 
-                      // Native Tool Calls (0ms hop)
                       if (root.has("toolCall")) {
                           JSONObject toolCall = root.getJSONObject("toolCall");
                           if (toolCall.has("functionCalls")) {
@@ -783,7 +790,6 @@ jobs:
                   return false;
               }
 
-              // Option A: 100% Pure Raw Pinpoint Coordinates
               public boolean tapCoordinates(int x, int y) {
                   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
 
@@ -1045,7 +1051,7 @@ jobs:
           }
           EOF
 
-          # ScreenCaptureService.java: 1:1 Crisp 288x592 Capture with On-Demand Frame Grab
+          # ScreenCaptureService.java: 1:1 Crisp 288x592 Capture
           cat << 'EOF' > app/src/main/java/com/gemini/live/ScreenCaptureService.java
           package com.gemini.live;
 
@@ -1203,7 +1209,7 @@ jobs:
           }
           EOF
 
-          # MainActivity.java: Lightweight UI Host, 200ms Live Search & Native Bridge
+          # MainActivity.java: Sanitized JS Bridge with JSONObject.quote() (Zero Handshake Hangs)
           cat << 'EOF' > app/src/main/java/com/gemini/live/MainActivity.java
           package com.gemini.live;
 
@@ -1289,7 +1295,11 @@ jobs:
                       public void onStateChanged(String state, String title, String sub) {
                           runOnUiThread(() -> {
                               if (webView != null) {
-                                  webView.evaluateJavascript("setVisualState('" + state + "', '" + title + "', '" + sub + "');", null);
+                                  // JSONObject.quote() completely eliminates syntax errors from unescaped quotes!
+                                  String js = "setVisualState(" + JSONObject.quote(state) + ", " 
+                                                                + JSONObject.quote(title) + ", " 
+                                                                + JSONObject.quote(sub != null ? sub : "") + ");";
+                                  webView.evaluateJavascript(js, null);
                               }
                           });
                       }
@@ -1298,7 +1308,8 @@ jobs:
                       public void onTaskStep(int step, String description) {
                           runOnUiThread(() -> {
                               if (webView != null) {
-                                  webView.evaluateJavascript("showTaskStep(" + step + ", '" + description + "');", null);
+                                  String js = "showTaskStep(" + step + ", " + JSONObject.quote(description != null ? description : "") + ");";
+                                  webView.evaluateJavascript(js, null);
                               }
                           });
                       }
@@ -1395,7 +1406,7 @@ jobs:
                   webView.loadUrl("file:///android_asset/index.html");
               }
 
-              // Fast 200ms real-time search grounding using existing OkHttp
+              // Fast 200ms DuckDuckGo HTML scraping via existing OkHttp
               public String bridgeSearchLiveWeb(String query) {
                   try {
                       okhttp3.Request req = new okhttp3.Request.Builder()
@@ -1724,8 +1735,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete v3.1 --yes || true
-          git tag -d v3.1 || true
-          gh release create v3.1 app/build/outputs/apk/debug/app-debug.apk \
-            --title "Voice v3.1 (Stable Native Audio & Grounding)" \
-            --notes "Voice v3.1: Synchronized setupComplete handshake, AudioRecord MIC source, AudioTrack USAGE_MEDIA playback, and 200ms OkHttp live search grounding." || true
+          gh release delete v3.2 --yes || true
+          git tag -d v3.2 || true
+          gh release create v3.2 app/build/outputs/apk/debug/app-debug.apk \
+            --title "Voice v3.2 (Handshake Sync & Sanitized Native Engine)" \
+            --notes "Voice v3.2: Sanitized JSONObject.quote bridge, synchronized setupComplete handling, parameterless schema fix, and 200ms live search." || true

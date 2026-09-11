@@ -191,7 +191,6 @@
       box-shadow: 0 0 14px rgba(168, 85, 247, 0.8), inset 0 2px 6px #fff;
     }
 
-    /* Working / Autonomous Task State */
     .state-working .orb-glow {
       background: rgba(6, 182, 212, 0.95);
       opacity: 0.95;
@@ -560,22 +559,8 @@ AUTONOMOUS PROTOCOL:
     const capsuleSub = document.getElementById("capsuleSub");
     const settingsSheet = document.getElementById("settingsSheet");
 
-    function setSettingsOpen(isOpen) {
-      if (isOpen) {
-        settingsSheet.classList.add("open");
-        if (window.AndroidBridge && window.AndroidBridge.setFocusable) {
-          window.AndroidBridge.setFocusable(true);
-        }
-      } else {
-        settingsSheet.classList.remove("open");
-        if (window.AndroidBridge && window.AndroidBridge.setFocusable) {
-          window.AndroidBridge.setFocusable(false);
-        }
-      }
-    }
-
-    document.getElementById("openSettingsBtn").onclick = () => setSettingsOpen(true);
-    document.getElementById("closeSettingsBtn").onclick = () => setSettingsOpen(false);
+    document.getElementById("openSettingsBtn").onclick = () => settingsSheet.classList.add("open");
+    document.getElementById("closeSettingsBtn").onclick = () => settingsSheet.classList.remove("open");
 
     document.getElementById("openAccessibilitySettingsBtn").onclick = () => {
       if (window.AndroidBridge && window.AndroidBridge.openAccessibilitySettings) {
@@ -585,7 +570,7 @@ AUTONOMOUS PROTOCOL:
 
     dismissBackdrop.onclick = () => {
       if (settingsSheet.classList.contains("open")) {
-        setSettingsOpen(false);
+        settingsSheet.classList.remove("open");
         return;
       }
       if (window.AndroidBridge && window.AndroidBridge.minimize) {
@@ -629,18 +614,18 @@ AUTONOMOUS PROTOCOL:
 
     function getActionDescription(name, args) {
       switch(name) {
+        case "create_note": return `Creating note...`;
         case "open_application": return `Opening ${args.app_name || 'app'}...`;
         case "type_text": {
           const preview = (args.text || '').length > 18 ? (args.text || '').substring(0, 15) + '...' : (args.text || '');
           return `Typing: "${preview}"`;
         }
         case "tap_element": return `Tapping "${args.label || 'button'}"...`;
-        case "create_note": return `Creating note...`;  
         case "tap_coordinates": return `Tapping (${args.x}, ${args.y})...`;
         case "scroll": return `Scrolling ${args.direction || 'down'}...`;
         case "swipe": return `Swiping screen...`;
         case "wait_seconds": return `Waiting for UI (${args.seconds || 1}s)...`;
-        case "read_screen_text": return `Reading screen text...`;
+        case "read_screen_text": return `Reading screen catalog...`;
         case "capture_screen": return `Analyzing screen image...`;
         case "search_contacts": return `Searching contact "${args.query || ''}"...`;
         case "search_youtube": return `Searching YouTube...`;
@@ -680,6 +665,17 @@ AUTONOMOUS PROTOCOL:
       {
         functionDeclarations: [
           {
+            name: "create_note",
+            description: "Instantly create a note or document with the provided text body via Android intent (zero-failure).",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                text: { type: "STRING", description: "The note content" }
+              },
+              required: ["text"]
+            }
+          },
+          {
             name: "type_text",
             description: "Insert text directly into the active editable field or open note on screen",
             parameters: {
@@ -691,20 +687,8 @@ AUTONOMOUS PROTOCOL:
             }
           },
           {
-            name: "tap_element",
-            description: "Click a UI element or button matching a label or description",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                label: { type: "STRING", description: "Text or label of the item to tap" }
-              },
-              required: ["label"]
-            }
-          },
-          {
-            {
             name: "tap_coordinates",
-            description: "Physically tap screen coordinates. Use normalized 0 to 1000 scale (where x=500, y=500 is the exact center of screen).",
+            description: "Physically tap screen coordinates. Use normalized 0 to 1000 scale (where x=500, y=500 is the center of screen).",
             parameters: {
               type: "OBJECT",
               properties: {
@@ -715,14 +699,14 @@ AUTONOMOUS PROTOCOL:
             }
           },
           {
-            name: "create_note",
-            description: "Instant zero-failure note creation. Directly opens a new note composer with pre-filled text body via Android intent.",
+            name: "tap_element",
+            description: "Click a UI element or button matching a label or description",
             parameters: {
               type: "OBJECT",
               properties: {
-                text: { type: "STRING", description: "The note content" }
+                label: { type: "STRING", description: "Text or label of the item to tap" }
               },
-              required: ["text"]
+              required: ["label"]
             }
           },
           {
@@ -764,12 +748,12 @@ AUTONOMOUS PROTOCOL:
           },
           {
             name: "read_screen_text",
-            description: "Extract and read all text visible on screen",
+            description: "Extract visible text AND an INTERACTIVE ELEMENTS catalog with (0-1000) coordinates.",
             parameters: { type: "OBJECT", properties: {} }
           },
           {
             name: "capture_screen",
-            description: "Capture screenshot to visually analyze image or canvas buttons",
+            description: "Capture screenshot to visually analyze layout or image buttons",
             parameters: { type: "OBJECT", properties: {} }
           },
           {
@@ -891,7 +875,7 @@ AUTONOMOUS PROTOCOL:
     connectBtn.addEventListener("click", async () => {
       const key = apiKeyInput.value.trim();
       if (!key) {
-        setSettingsOpen(true);
+        settingsSheet.classList.add("open");
         return;
       }
       try { localStorage.setItem("gemini_live_key", key); } catch(e) {}
@@ -983,10 +967,10 @@ AUTONOMOUS PROTOCOL:
       try {
         if (!window.AndroidBridge) {
           result = "Android native bridge not ready.";
-        } else if (name === "type_text") {
-          result = window.AndroidBridge.typeText(args.text || "");
         } else if (name === "create_note") {
           result = window.AndroidBridge.createNote(args.text || "");
+        } else if (name === "type_text") {
+          result = window.AndroidBridge.typeText(args.text || "");
         } else if (name === "tap_element") {
           result = window.AndroidBridge.tapElement(args.label || "");
         } else if (name === "tap_coordinates") {

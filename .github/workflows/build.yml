@@ -116,14 +116,22 @@ jobs:
                   applicationId "com.gemini.live"
                   minSdk 24
                   targetSdk 34
-                  versionCode 13
-                  versionName "2.0"
+                  versionCode 14
+                  versionName "3.0"
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
               }
               buildTypes {
                   release {
                       minifyEnabled false
                   }
               }
+          }
+
+          dependencies {
+              implementation 'com.squareup.okhttp3:okhttp:4.12.0'
           }
           EOF
 
@@ -194,167 +202,435 @@ jobs:
           </manifest>
           EOF
 
-          # ScreenCaptureService.java: 1:1 Crisp 288x592 Capture + Instant VirtualDisplay Release
-          cat << 'EOF' > app/src/main/java/com/gemini/live/ScreenCaptureService.java
+          # NativeAudioPipeline.java: Native 16kHz AudioRecord (Hardware AEC) & 24kHz AudioTrack Playback
+          cat << 'EOF' > app/src/main/java/com/gemini/live/NativeAudioPipeline.java
           package com.gemini.live;
 
-          import android.app.Notification;
-          import android.app.NotificationChannel;
-          import android.app.NotificationManager;
-          import android.app.Service;
-          import android.content.Context;
-          import android.content.Intent;
-          import android.content.pm.ServiceInfo;
-          import android.graphics.Bitmap;
-          import android.graphics.PixelFormat;
-          import android.hardware.display.DisplayManager;
-          import android.hardware.display.VirtualDisplay;
-          import android.media.Image;
-          import android.media.ImageReader;
-          import android.media.projection.MediaProjection;
-          import android.media.projection.MediaProjectionManager;
-          import android.os.Build;
-          import android.os.IBinder;
-          import android.os.SystemClock;
+          import android.media.AudioAttributes;
+          import android.media.AudioFormat;
+          import android.media.AudioManager;
+          import android.media.AudioRecord;
+          import android.media.AudioTrack;
+          import android.media.MediaRecorder;
           import android.util.Base64;
-          import android.util.DisplayMetrics;
-          import android.view.WindowManager;
-          import java.io.ByteArrayOutputStream;
-          import java.nio.ByteBuffer;
+          import java.util.concurrent.atomic.AtomicBoolean;
 
-          public class ScreenCaptureService extends Service {
-              public static ScreenCaptureService instance = null;
-              private MediaProjection mediaProjection;
-              private int resultCode = 0;
-              private Intent resultData = null;
+          public class NativeAudioPipeline {
+              private static final int IN_SAMPLE_RATE = 16000;
+              private static final int OUT_SAMPLE_RATE = 24000;
 
-              @Override
-              public void onCreate() {
-                  super.onCreate();
-                  instance = this;
-                  startForegroundNotification();
+              private AudioRecord audioRecord;
+              private AudioTrack audioTrack;
+              private Thread captureThread;
+              private final AtomicBoolean isCapturing = new AtomicBoolean(false);
+              private AudioDataListener listener;
+
+              public interface AudioDataListener {
+                  void onAudioCaptured(String base64Pcm);
+                  void onSpeakingStateChanged(boolean isSpeaking);
               }
 
-              @Override
-              public int onStartCommand(Intent intent, int flags, int startId) {
-                  startForegroundNotification();
-                  if (intent != null && intent.hasExtra("resultCode") && intent.hasExtra("data")) {
-                      this.resultCode = intent.getIntExtra("resultCode", 0);
-                      this.resultData = intent.getParcelableExtra("data");
-                      initProjection();
-                  }
-                  return START_STICKY;
+              public NativeAudioPipeline(AudioDataListener listener) {
+                  this.listener = listener;
+                  initPlaybackTrack();
               }
 
-              private void initProjection() {
-                  try {
-                      if (mediaProjection == null && resultData != null) {
-                          MediaProjectionManager mpm = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-                          if (mpm != null) {
-                              mediaProjection = mpm.getMediaProjection(resultCode, resultData);
+              private void initPlaybackTrack() {
+                  int minBufferSize = AudioTrack.getMinBufferSize(
+                      OUT_SAMPLE_RATE,
+                      AudioFormat.CHANNEL_OUT_MONO,
+                      AudioFormat.ENCODING_PCM_16BIT
+                  );
+
+                  AudioAttributes attrs = new AudioAttributes.Builder()
+                      .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                      .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                      .build();
+
+                  AudioFormat format = new AudioFormat.Builder()
+                      .setSampleRate(OUT_SAMPLE_RATE)
+                      .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                      .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                      .build();
+
+                  audioTrack = new AudioTrack(
+                      attrs,
+                      format,
+                      Math.max(minBufferSize * 2, 8192),
+                      AudioTrack.MODE_STREAM,
+                      AudioManager.AUDIO_SESSION_ID_GENERATE
+                  );
+                  audioTrack.play();
+              }
+
+              public synchronized void startCapture() {
+                  if (isCapturing.get()) return;
+
+                  int minBufferSize = AudioRecord.getMinBufferSize(
+                      IN_SAMPLE_RATE,
+                      AudioFormat.CHANNEL_IN_MONO,
+                      AudioFormat.ENCODING_PCM_16BIT
+                  );
+
+                  // Hardware Acoustic Echo Cancellation via VOICE_COMMUNICATION
+                  audioRecord = new AudioRecord(
+                      MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+                      IN_SAMPLE_RATE,
+                      AudioFormat.CHANNEL_IN_MONO,
+                      AudioFormat.ENCODING_PCM_16BIT,
+                      Math.max(minBufferSize * 2, 4096)
+                  );
+
+                  if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) return;
+
+                  isCapturing.set(true);
+                  audioRecord.startRecording();
+
+                  captureThread = new Thread(() -> {
+                      android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
+                      byte[] buffer = new byte[2048]; // ~64ms of 16kHz 16-bit mono
+
+                      while (isCapturing.get()) {
+                          int read = audioRecord.read(buffer, 0, buffer.length);
+                          if (read > 0 && listener != null) {
+                              String b64 = Base64.encodeToString(buffer, 0, read, Base64.NO_WRAP);
+                              listener.onAudioCaptured(b64);
                           }
+                      }
+                  }, "NativeAudioCapture");
+                  captureThread.start();
+              }
+
+              public void playPcmChunk(byte[] pcmBytes) {
+                  if (audioTrack != null && audioTrack.getPlayState() == AudioTrack.PLAYSTATE_PLAYING) {
+                      if (listener != null) listener.onSpeakingStateChanged(true);
+                      audioTrack.write(pcmBytes, 0, pcmBytes.length);
+                  }
+              }
+
+              public void stopPlayback() {
+                  if (audioTrack != null) {
+                      try {
+                          audioTrack.pause();
+                          audioTrack.flush();
+                          audioTrack.play();
+                      } catch (Exception ignored) {}
+                  }
+                  if (listener != null) listener.onSpeakingStateChanged(false);
+              }
+
+              public synchronized void release() {
+                  isCapturing.set(false);
+                  if (audioRecord != null) {
+                      try {
+                          audioRecord.stop();
+                          audioRecord.release();
+                      } catch (Exception ignored) {}
+                      audioRecord = null;
+                  }
+                  if (audioTrack != null) {
+                      try {
+                          audioTrack.stop();
+                          audioTrack.release();
+                      } catch (Exception ignored) {}
+                      audioTrack = null;
+                  }
+              }
+          }
+          EOF
+
+          # GeminiLiveClient.java: Native OkHttp WebSocket Engine with Direct 0ms Tool Execution
+          cat << 'EOF' > app/src/main/java/com/gemini/live/GeminiLiveClient.java
+          package com.gemini.live;
+
+          import android.util.Base64;
+          import okhttp3.OkHttpClient;
+          import okhttp3.Request;
+          import okhttp3.Response;
+          import okhttp3.WebSocket;
+          import okhttp3.WebSocketListener;
+          import org.json.JSONArray;
+          import org.json.JSONObject;
+          import java.util.concurrent.TimeUnit;
+
+          public class GeminiLiveClient {
+              public static GeminiLiveClient instance = null;
+              private WebSocket webSocket;
+              private OkHttpClient client;
+              private NativeAudioPipeline audioPipeline;
+              private boolean isConnected = false;
+
+              public interface UIUpdateListener {
+                  void onStateChanged(String state, String title, String sub);
+                  void onTaskStep(int step, String description);
+              }
+              private UIUpdateListener uiListener;
+
+              public GeminiLiveClient(UIUpdateListener uiListener) {
+                  this.uiListener = uiListener;
+                  instance = this;
+                  this.client = new OkHttpClient.Builder()
+                      .pingInterval(15, TimeUnit.SECONDS)
+                      .retryOnConnectionFailure(true)
+                      .build();
+
+                  this.audioPipeline = new NativeAudioPipeline(new NativeAudioPipeline.AudioDataListener() {
+                      @Override
+                      public void onAudioCaptured(String base64Pcm) {
+                          sendAudioFrame(base64Pcm);
+                      }
+                      @Override
+                      public void onSpeakingStateChanged(boolean isSpeaking) {
+                          if (uiListener != null && isConnected) {
+                              if (isSpeaking) uiListener.onStateChanged("speaking", "Speaking", "Jarvis...");
+                              else uiListener.onStateChanged("listening", "Listening", "Go ahead");
+                          }
+                      }
+                  });
+              }
+
+              public void connect(String apiKey, String model, String voice, String prompt, String toolsJsonStr) {
+                  if (isConnected) disconnect();
+                  if (uiListener != null) uiListener.onStateChanged("idle", "Connecting...", "Native Engine");
+
+                  String endpoint = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=" + apiKey.trim();
+                  Request request = new Request.Builder().url(endpoint).build();
+
+                  webSocket = client.newWebSocket(request, new WebSocketListener() {
+                      @Override
+                      public void onOpen(WebSocket ws, Response response) {
+                          isConnected = true;
+                          sendSetupPayload(model, voice, prompt, toolsJsonStr);
+                          audioPipeline.startCapture();
+                          if (uiListener != null) uiListener.onStateChanged("listening", "Listening", "Go ahead");
+                      }
+
+                      @Override
+                      public void onMessage(WebSocket ws, String text) {
+                          handleIncomingMessage(text);
+                      }
+
+                      @Override
+                      public void onFailure(WebSocket ws, Throwable t, Response response) {
+                          isConnected = false;
+                          audioPipeline.stopPlayback();
+                          if (uiListener != null) uiListener.onStateChanged("idle", "Connection Failed", t.getMessage());
+                      }
+
+                      @Override
+                      public void onClosed(WebSocket ws, int code, String reason) {
+                          isConnected = false;
+                          audioPipeline.stopPlayback();
+                          if (uiListener != null) uiListener.onStateChanged("idle", "Voice", "Ready");
+                      }
+                  });
+              }
+
+              private void sendSetupPayload(String model, String voice, String prompt, String toolsJsonStr) {
+                  try {
+                      JSONObject setup = new JSONObject();
+                      setup.put("model", model.trim().isEmpty() ? "models/gemini-2.0-flash-exp" : model.trim());
+
+                      JSONObject voiceConfig = new JSONObject();
+                      voiceConfig.put("voiceName", voice.trim().isEmpty() ? "Puck" : voice.trim());
+                      JSONObject speechConfig = new JSONObject();
+                      speechConfig.put("voiceConfig", new JSONObject().put("prebuiltVoiceConfig", voiceConfig));
+
+                      JSONObject genConfig = new JSONObject();
+                      genConfig.put("responseModalities", new JSONArray().put("AUDIO"));
+                      genConfig.put("speechConfig", speechConfig);
+                      setup.put("generationConfig", genConfig);
+
+                      if (prompt != null && !prompt.trim().isEmpty()) {
+                          JSONObject textPart = new JSONObject().put("text", prompt);
+                          setup.put("systemInstruction", new JSONObject().put("parts", new JSONArray().put(textPart)));
+                      }
+
+                      if (toolsJsonStr != null && !toolsJsonStr.trim().isEmpty()) {
+                          setup.put("tools", new JSONArray(toolsJsonStr));
+                      }
+
+                      JSONObject root = new JSONObject().put("setup", setup);
+                      webSocket.send(root.toString());
+                  } catch (Exception ignored) {}
+              }
+
+              private void sendAudioFrame(String base64Pcm) {
+                  if (!isConnected || webSocket == null) return;
+                  try {
+                      JSONObject audio = new JSONObject();
+                      audio.put("data", base64Pcm);
+                      audio.put("mimeType", "audio/pcm;rate=16000");
+
+                      JSONObject realtimeInput = new JSONObject().put("audio", audio);
+                      JSONObject frame = new JSONObject().put("realtimeInput", realtimeInput);
+                      webSocket.send(frame.toString());
+                  } catch (Exception ignored) {}
+              }
+
+              public void sendVideoFrame(String base64Jpeg) {
+                  if (!isConnected || webSocket == null) return;
+                  try {
+                      JSONObject video = new JSONObject();
+                      video.put("data", base64Jpeg);
+                      video.put("mimeType", "image/jpeg");
+
+                      JSONObject realtimeInput = new JSONObject().put("video", video);
+                      JSONObject frame = new JSONObject().put("realtimeInput", realtimeInput);
+                      webSocket.send(frame.toString());
+                  } catch (Exception ignored) {}
+              }
+
+              private void handleIncomingMessage(String jsonStr) {
+                  try {
+                      JSONObject root = new JSONObject(jsonStr);
+
+                      // Tool Calls: Executed directly on native thread (0ms latency!)
+                      if (root.has("toolCall")) {
+                          JSONObject toolCall = root.getJSONObject("toolCall");
+                          if (toolCall.has("functionCalls")) {
+                              JSONArray calls = toolCall.getJSONArray("functionCalls");
+                              for (int i = 0; i < calls.length(); i++) {
+                                  JSONObject c = calls.getJSONObject(i);
+                                  executeNativeTool(c.getString("name"), c.optJSONObject("args"), c.optString("id", "call_1"));
+                              }
+                          }
+                      }
+
+                      if (!root.has("serverContent")) return;
+                      JSONObject serverContent = root.getJSONObject("serverContent");
+
+                      if (serverContent.optBoolean("interrupted", false)) {
+                          audioPipeline.stopPlayback();
+                          if (uiListener != null) uiListener.onStateChanged("listening", "Listening", "Go ahead");
+                          return;
+                      }
+
+                      if (serverContent.has("modelTurn")) {
+                          JSONObject modelTurn = serverContent.getJSONObject("modelTurn");
+                          if (modelTurn.has("parts")) {
+                              JSONArray parts = modelTurn.getJSONArray("parts");
+                              for (int i = 0; i < parts.length(); i++) {
+                                  JSONObject part = parts.getJSONObject(i);
+                                  if (part.has("functionCall")) {
+                                      JSONObject fc = part.getJSONObject("functionCall");
+                                      executeNativeTool(fc.getString("name"), fc.optJSONObject("args"), fc.optString("id", "call_1"));
+                                  }
+                                  String b64Audio = null;
+                                  if (part.has("inlineData")) {
+                                      b64Audio = part.getJSONObject("inlineData").optString("data", null);
+                                  } else if (part.has("data")) {
+                                      b64Audio = part.optString("data", null);
+                                  }
+                                  if (b64Audio != null) {
+                                      byte[] pcmBytes = Base64.decode(b64Audio, Base64.NO_WRAP);
+                                      audioPipeline.playPcmChunk(pcmBytes);
+                                  }
+                              }
+                          }
+                      }
+
+                      if (serverContent.optBoolean("turnComplete", false)) {
+                          if (uiListener != null) uiListener.onStateChanged("listening", "Listening", "Go ahead");
                       }
                   } catch (Exception ignored) {}
               }
 
-              // Captures 1:1 Native Resolution without downscaling blur
-              public String captureScreenBase64() {
-                  if (mediaProjection == null) {
-                      initProjection();
-                      if (mediaProjection == null) return null;
-                  }
-
-                  VirtualDisplay virtualDisplay = null;
-                  ImageReader imageReader = null;
-                  Image image = null;
-                  Bitmap bitmap = null;
+              // Direct Native Tool Execution (Zero hops through WebView!)
+              private void executeNativeTool(String name, JSONObject args, String callId) {
+                  String result = "Completed";
+                  if (args == null) args = new JSONObject();
 
                   try {
-                      WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
-                      DisplayMetrics dm = new DisplayMetrics();
-                      if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
-                      else dm = getResources().getDisplayMetrics();
-
-                      // Native resolution 1:1 (crisp 288x592 text)
-                      int width = dm.widthPixels;
-                      int height = dm.heightPixels;
-
-                      imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2);
-                      virtualDisplay = mediaProjection.createVirtualDisplay(
-                          "VoiceShot", width, height, dm.densityDpi,
-                          DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                          imageReader.getSurface(), null, null
-                      );
-
-                      for (int i = 0; i < 6; i++) {
-                          SystemClock.sleep(50);
-                          image = imageReader.acquireLatestImage();
-                          if (image != null) break;
+                      if (MainActivity.instance == null) {
+                          result = "Bridge unavailable";
+                      } else if ("tap_element_id".equals(name)) {
+                          int id = args.optInt("element_id", -1);
+                          result = MainActivity.instance.bridgeTapElementId(id);
+                      } else if ("tap_coordinates".equals(name)) {
+                          int x = args.optInt("x", 0);
+                          int y = args.optInt("y", 0);
+                          result = MainActivity.instance.bridgeTapCoordinates(x, y);
+                      } else if ("long_press".equals(name)) {
+                          int x = args.optInt("x", 0);
+                          int y = args.optInt("y", 0);
+                          result = MainActivity.instance.bridgeLongPress(x, y);
+                      } else if ("type_text".equals(name)) {
+                          result = MainActivity.instance.bridgeTypeText(args.optString("text", ""));
+                      } else if ("create_note".equals(name)) {
+                          result = MainActivity.instance.bridgeCreateNote(args.optString("text", ""));
+                      } else if ("read_screen_text".equals(name)) {
+                          result = MainActivity.instance.bridgeReadScreenText();
+                      } else if ("capture_screen".equals(name)) {
+                          result = MainActivity.instance.bridgeCaptureScreen();
+                      } else if ("scroll".equals(name)) {
+                          result = MainActivity.instance.bridgeScroll(args.optString("direction", "down"));
+                      } else if ("swipe".equals(name)) {
+                          result = MainActivity.instance.bridgeSwipe(args.optInt("start_x", 0), args.optInt("start_y", 0), args.optInt("end_x", 0), args.optInt("end_y", 0), args.optInt("duration_ms", 300));
+                      } else if ("wait_seconds".equals(name)) {
+                          int s = Math.min(Math.max(args.optInt("seconds", 1), 1), 4);
+                          Thread.sleep(s * 1000L);
+                          result = "Waited " + s + "s";
+                      } else if ("open_application".equals(name)) {
+                          result = MainActivity.instance.bridgeOpenApp(args.optString("app_name", ""));
+                      } else if ("search_contacts".equals(name)) {
+                          result = MainActivity.instance.bridgeSearchContacts(args.optString("query", ""));
+                      } else if ("search_youtube".equals(name)) {
+                          result = MainActivity.instance.bridgeSearchYouTube(args.optString("query", ""));
+                      } else if ("search_web".equals(name)) {
+                          result = MainActivity.instance.bridgeSearchWeb(args.optString("query", ""));
+                      } else if ("open_whatsapp".equals(name)) {
+                          result = MainActivity.instance.bridgeOpenWhatsApp(args.optString("phone_number", ""), args.optString("message", ""));
+                      } else if ("make_phone_call".equals(name)) {
+                          result = MainActivity.instance.bridgeMakeCall(args.optString("phone_number", ""));
+                      } else if ("send_sms".equals(name)) {
+                          result = MainActivity.instance.bridgeSendSms(args.optString("phone_number", ""), args.optString("message", ""));
+                      } else if ("toggle_flashlight".equals(name)) {
+                          result = MainActivity.instance.bridgeToggleFlashlight(args.optBoolean("state", false));
+                      } else if ("set_volume".equals(name)) {
+                          result = MainActivity.instance.bridgeSetVolume(args.optInt("level_percent", 50));
+                      } else if ("navigate_system".equals(name)) {
+                          result = MainActivity.instance.bridgeNavigateSystem(args.optString("action", "home"));
                       }
-
-                      if (image == null) return null;
-
-                      Image.Plane[] planes = image.getPlanes();
-                      ByteBuffer buffer = planes[0].getBuffer();
-                      int pixelStride = planes[0].getPixelStride();
-                      int rowStride = planes[0].getRowStride();
-                      int rowPadding = rowStride - pixelStride * width;
-
-                      bitmap = Bitmap.createBitmap(width + rowPadding / pixelStride, height, Bitmap.Config.ARGB_8888);
-                      bitmap.copyPixelsFromBuffer(buffer);
-
-                      Bitmap cropped = Bitmap.createBitmap(bitmap, 0, 0, width, height);
-                      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                      cropped.compress(Bitmap.CompressFormat.JPEG, 75, baos);
-                      return Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP);
-
                   } catch (Exception e) {
-                      return null;
-                  } finally {
-                      if (bitmap != null) bitmap.recycle();
-                      if (image != null) image.close();
-                      if (virtualDisplay != null) virtualDisplay.release(); // Mirroring icon disappears immediately
-                      if (imageReader != null) imageReader.close();
-                  }
-              }
-
-              private void startForegroundNotification() {
-                  String channelId = "voice_screen_capture";
-                  NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm != null) {
-                      NotificationChannel chan = new NotificationChannel(channelId, "Voice Screen Capture", NotificationManager.IMPORTANCE_LOW);
-                      nm.createNotificationChannel(chan);
+                      result = "Execution error: " + e.getMessage();
                   }
 
-                  Notification.Builder b = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) 
-                      ? new Notification.Builder(this, channelId) 
-                      : new Notification.Builder(this);
+                  sendToolResponse(callId, result);
+              }
 
-                  Notification notif = b.setContentTitle("Voice Vision")
-                      .setContentText("Screen engine ready")
-                      .setSmallIcon(android.R.drawable.ic_menu_camera)
-                      .build();
+              private void sendToolResponse(String id, String resultStr) {
+                  if (!isConnected || webSocket == null) return;
+                  try {
+                      JSONObject resObj = new JSONObject().put("result", resultStr);
+                      JSONObject funcRes = new JSONObject()
+                          .put("id", id)
+                          .put("response", new JSONObject().put("output", resObj));
 
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                      startForeground(1001, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
-                  } else {
-                      startForeground(1001, notif);
+                      JSONObject toolResponse = new JSONObject()
+                          .put("functionResponses", new JSONArray().put(funcRes));
+
+                      JSONObject payload = new JSONObject().put("toolResponse", toolResponse);
+                      webSocket.send(payload.toString());
+                  } catch (Exception ignored) {}
+              }
+
+              public void disconnect() {
+                  isConnected = false;
+                  if (audioPipeline != null) {
+                      audioPipeline.stopPlayback();
+                      audioPipeline.release();
                   }
+                  if (webSocket != null) {
+                      try { webSocket.close(1000, "Client disconnect"); } catch (Exception ignored) {}
+                      webSocket = null;
+                  }
+                  if (uiListener != null) uiListener.onStateChanged("idle", "Voice", "Ready");
               }
-
-              @Override
-              public void onDestroy() {
-                  instance = null;
-                  if (mediaProjection != null) mediaProjection.stop();
-                  super.onDestroy();
-              }
-
-              @Override
-              public IBinder onBind(Intent intent) { return null; }
           }
           EOF
 
-          # VolumeTriggerService.java: Sniper Normalization, Magnetic Snap, Long-Press & Interactive Catalog
+          # VolumeTriggerService.java: Candidate Indexer [0..N], 0-1000 Mapping, Long-Press & Multi-Signal Keyboard
           cat << 'EOF' > app/src/main/java/com/gemini/live/VolumeTriggerService.java
           package com.gemini.live;
 
@@ -378,15 +654,19 @@ jobs:
           import android.view.WindowManager;
           import android.view.accessibility.AccessibilityEvent;
           import android.view.accessibility.AccessibilityNodeInfo;
+          import android.view.accessibility.AccessibilityWindowInfo;
           import android.widget.Toast;
           import java.util.ArrayList;
+          import java.util.HashMap;
           import java.util.List;
+          import java.util.Map;
 
           public class VolumeTriggerService extends AccessibilityService {
               public static VolumeTriggerService instance = null;
               private long lastVolumeDownTime = 0;
               private static final long DOUBLE_PRESS_INTERVAL = 450;
               private Handler mainHandler = new Handler(Looper.getMainLooper());
+              private Map<Integer, Rect> candidateElementMap = new HashMap<>();
 
               @Override
               public void onServiceConnected() {
@@ -485,7 +765,15 @@ jobs:
                   startActivity(intent);
               }
 
-              // Calibrated for 288x592: Direct Pixels + Small Button Snap Only (No Containers)
+              public boolean tapElementId(int id) {
+                  Rect bounds = candidateElementMap.get(id);
+                  if (bounds != null) {
+                      return tapCoordinates(bounds.centerX(), bounds.centerY());
+                  }
+                  showToast("Element #" + id + " not in catalog");
+                  return false;
+              }
+
               public boolean tapCoordinates(int x, int y) {
                   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
 
@@ -494,31 +782,12 @@ jobs:
                   if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
                   else dm = getResources().getDisplayMetrics();
 
-                  int targetX = x;
-                  int targetY = y;
-
-                  // If Gemini sends normalized numbers (greater than screen size), scale down to 288x592
-                  if (x > dm.widthPixels || y > dm.heightPixels) {
-                      targetX = Math.round((x / 1000.0f) * dm.widthPixels);
-                      targetY = Math.round((y / 1000.0f) * dm.heightPixels);
-                  }
-
-                  // Magnetic Snap: ONLY snap to small leaf buttons (never giant containers!)
-                  AccessibilityNodeInfo root = getRootInActiveWindow();
-                  if (root != null) {
-                      Rect snapped = findNearbyElementBounds(root, targetX, targetY, dm.widthPixels, 25);
-                      if (snapped != null) {
-                          targetX = snapped.centerX();
-                          targetY = snapped.centerY();
-                      }
-                  }
-
-                  targetX = Math.max(5, Math.min(targetX, dm.widthPixels - 5));
-                  targetY = Math.max(5, Math.min(targetY, dm.heightPixels - 5));
+                  int targetX = Math.max(2, Math.min(x, dm.widthPixels - 2));
+                  int targetY = Math.max(2, Math.min(y, dm.heightPixels - 2));
 
                   Path clickPath = new Path();
                   clickPath.moveTo(targetX, targetY);
-                  clickPath.lineTo(targetX, targetY + 2);
+                  clickPath.lineTo(targetX, targetY + 1);
 
                   GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(clickPath, 0, 120);
                   GestureDescription.Builder builder = new GestureDescription.Builder();
@@ -536,7 +805,6 @@ jobs:
                   }, null);
               }
 
-              // Hardware Long-Press (700ms) for Text Selection & Context Menus
               public boolean longPress(int x, int y) {
                   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false;
 
@@ -545,8 +813,8 @@ jobs:
                   if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
                   else dm = getResources().getDisplayMetrics();
 
-                  int targetX = (x > dm.widthPixels) ? Math.round((x / 1000.0f) * dm.widthPixels) : x;
-                  int targetY = (y > dm.heightPixels) ? Math.round((y / 1000.0f) * dm.heightPixels) : y;
+                  int targetX = Math.max(2, Math.min(x, dm.widthPixels - 2));
+                  int targetY = Math.max(2, Math.min(y, dm.heightPixels - 2));
 
                   Path path = new Path();
                   path.moveTo(targetX, targetY);
@@ -566,28 +834,6 @@ jobs:
                           showToast("✓ Long-pressed (" + fX + ", " + fY + ")");
                       }
                   }, null);
-              }
-
-              // Rejects containers: only snaps to small clickable icons/buttons (max 45% screen width)
-              private Rect findNearbyElementBounds(AccessibilityNodeInfo node, int x, int y, int screenWidth, int radius) {
-                  if (node == null) return null;
-                  if (node.isClickable()) {
-                      Rect r = new Rect();
-                      node.getBoundsInScreen(r);
-                      // Strict button check: must be smaller than 45% of screen width and max 120px tall
-                      boolean isSmallButton = r.width() > 5 && r.width() < (screenWidth * 0.45f) && r.height() < 120;
-                      if (isSmallButton) {
-                          if (r.contains(x, y)) return r;
-                          int dx = x - r.centerX();
-                          int dy = y - r.centerY();
-                          if (Math.sqrt(dx * dx + dy * dy) <= radius) return r;
-                      }
-                  }
-                  for (int i = 0; i < node.getChildCount(); i++) {
-                      Rect found = findNearbyElementBounds(node.getChild(i), x, y, screenWidth, radius);
-                      if (found != null) return found;
-                  }
-                  return null;
               }
 
               public boolean swipe(int startX, int startY, int endX, int endY, int durationMs) {
@@ -616,27 +862,23 @@ jobs:
                   }
               }
 
-              // Returns visible text AND interactive candidate elements with 0-1000 coordinates
               public String readScreenText() {
                   AccessibilityNodeInfo root = getRootInActiveWindow();
                   if (root == null) return "No active window detected.";
 
-                  WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
-                  DisplayMetrics dm = new DisplayMetrics();
-                  if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
-                  else dm = getResources().getDisplayMetrics();
-
+                  candidateElementMap.clear();
                   StringBuilder catalog = new StringBuilder();
-                  catalog.append("=== INTERACTIVE ELEMENTS (COORDINATES 0-1000) ===\n");
-                  List<String> elements = new ArrayList<>();
-                  extractInteractiveElements(root, elements, dm, 0);
-                  if (elements.isEmpty()) {
-                      catalog.append("No labeled buttons detected.\n");
+                  catalog.append("=== INTERACTIVE ELEMENTS (CANDIDATE IDs) ===\n");
+                  List<String> elementList = new ArrayList<>();
+                  extractInteractiveCandidates(root, elementList, 0);
+
+                  if (elementList.isEmpty()) {
+                      catalog.append("No labeled buttons found.\n");
                   } else {
-                      for (String el : elements) catalog.append(el).append("\n");
+                      for (String item : elementList) catalog.append(item).append("\n");
                   }
 
-                  catalog.append("\n=== SCREEN TEXT CONTENT ===\n");
+                  catalog.append("\n=== SCREEN TEXT ===\n");
                   StringBuilder textSb = new StringBuilder();
                   extractTextRecursive(root, textSb, 0);
                   catalog.append(textSb.toString().trim());
@@ -644,25 +886,25 @@ jobs:
                   return catalog.toString();
               }
 
-              private void extractInteractiveElements(AccessibilityNodeInfo node, List<String> list, DisplayMetrics dm, int depth) {
-                  if (node == null || depth > 25 || list.size() >= 25) return;
-                  if (node.isClickable() || node.isEditable()) {
+              private void extractInteractiveCandidates(AccessibilityNodeInfo node, List<String> list, int depth) {
+                  if (node == null || depth > 25 || candidateElementMap.size() >= 30) return;
+                  if (node.isClickable() || node.isEditable() || node.isLongClickable()) {
                       CharSequence text = node.getText();
                       CharSequence desc = node.getContentDescription();
                       String label = text != null ? text.toString().trim() : (desc != null ? desc.toString().trim() : "");
                       if (!label.isEmpty()) {
                           Rect r = new Rect();
                           node.getBoundsInScreen(r);
-                          if (r.width() > 10 && r.height() > 10) {
-                              int normX = Math.round((r.centerX() / (float) dm.widthPixels) * 1000);
-                              int normY = Math.round((r.centerY() / (float) dm.heightPixels) * 1000);
+                          if (r.width() > 8 && r.height() > 8) {
+                              int id = candidateElementMap.size();
+                              candidateElementMap.put(id, r);
                               String type = node.isEditable() ? "Input" : "Button";
-                              list.add("[" + type + "] \"" + label + "\" at coordinates (" + normX + ", " + normY + ")");
+                              list.add("[#" + id + "] " + type + " \"" + label + "\" at (" + r.centerX() + ", " + r.centerY() + ")");
                           }
                       }
                   }
                   for (int i = 0; i < node.getChildCount(); i++) {
-                      extractInteractiveElements(node.getChild(i), list, dm, depth + 1);
+                      extractInteractiveCandidates(node.getChild(i), list, depth + 1);
                   }
               }
 
@@ -682,49 +924,46 @@ jobs:
                   }
               }
 
-              public boolean tapElement(String label) {
-                  String target = label.toLowerCase().trim();
-                  AccessibilityNodeInfo root = getRootInActiveWindow();
-                  if (root == null) return false;
-
-                  List<AccessibilityNodeInfo> matches = new ArrayList<>();
-                  collectMatches(root, target, matches, 0);
-                  if (matches.isEmpty()) return false;
-
-                  AccessibilityNodeInfo bestNode = null;
-                  int minArea = Integer.MAX_VALUE;
-                  Rect r = new Rect();
-                  for (AccessibilityNodeInfo n : matches) {
-                      n.getBoundsInScreen(r);
-                      int area = r.width() * r.height();
-                      if (area > 0 && area < minArea) {
-                          minArea = area;
-                          bestNode = n;
+              private boolean isKeyboardVisible() {
+                  List<AccessibilityWindowInfo> windows = getWindows();
+                  if (windows != null) {
+                      for (AccessibilityWindowInfo window : windows) {
+                          if (window.getType() == AccessibilityWindowInfo.TYPE_INPUT_METHOD) {
+                              return true;
+                          }
                       }
                   }
-
-                  if (bestNode != null) {
-                      bestNode.getBoundsInScreen(r);
-                      return tapCoordinates(r.centerX(), r.centerY());
+                  AccessibilityNodeInfo root = getRootInActiveWindow();
+                  if (root != null) {
+                      AccessibilityNodeInfo focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+                      if (focused != null && focused.isEditable()) {
+                          Rect bounds = new Rect();
+                          focused.getBoundsInScreen(bounds);
+                          DisplayMetrics dm = getResources().getDisplayMetrics();
+                          if (bounds.bottom < dm.heightPixels / 2) return true;
+                      }
                   }
                   return false;
               }
 
-              private void collectMatches(AccessibilityNodeInfo node, String target, List<AccessibilityNodeInfo> list, int depth) {
-                  if (node == null || depth > 25) return;
-                  CharSequence text = node.getText();
-                  CharSequence desc = node.getContentDescription();
-                  boolean match = (text != null && text.toString().toLowerCase().contains(target)) ||
-                                  (desc != null && desc.toString().toLowerCase().contains(target));
-                  if (match) list.add(node);
-                  for (int i = 0; i < node.getChildCount(); i++) {
-                      collectMatches(node.getChild(i), target, list, depth + 1);
+              private void safeDismissKeyboard() {
+                  if (isKeyboardVisible()) {
+                      AccessibilityNodeInfo root = getRootInActiveWindow();
+                      if (root != null) {
+                          CharSequence pkg = root.getPackageName();
+                          if (pkg != null && (pkg.toString().contains("launcher"))) return;
+                      }
+                      performGlobalAction(GLOBAL_ACTION_BACK);
+                      SystemClock.sleep(120);
                   }
               }
 
-              // Multi-Stage Typing Engine: Protects blinking cursor & prevents line shifting
               public boolean typeText(String text) {
                   AccessibilityNodeInfo root = getRootInActiveWindow();
+                  if (root == null) return false;
+
+                  safeDismissKeyboard();
+                  root = getRootInActiveWindow();
                   if (root == null) return false;
 
                   AccessibilityNodeInfo focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
@@ -740,7 +979,7 @@ jobs:
                       editable.getBoundsInScreen(rect);
                       if (rect.width() > 0 && rect.height() > 0) {
                           tapCoordinates(rect.centerX(), rect.centerY());
-                          SystemClock.sleep(200);
+                          SystemClock.sleep(150);
                       }
                       root = getRootInActiveWindow();
                       if (root != null) {
@@ -771,13 +1010,15 @@ jobs:
                       }
                   } catch (Exception ignored) {}
 
+                  node.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
+                  SystemClock.sleep(50);
+
                   boolean ok = node.performAction(AccessibilityNodeInfo.ACTION_PASTE);
                   if (!ok) {
                       Bundle args = new Bundle();
                       args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text);
                       ok = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
                   }
-
                   if (ok) showToast("✓ Inserted text");
                   return ok;
               }
@@ -794,7 +1035,165 @@ jobs:
           }
           EOF
 
-          # MainActivity.java: Playbook File Persistence, My Files Intent & Full Device Bridge
+          # ScreenCaptureService.java: 1:1 Crisp 288x592 Capture with On-Demand Frame Grab
+          cat << 'EOF' > app/src/main/java/com/gemini/live/ScreenCaptureService.java
+          package com.gemini.live;
+
+          import android.app.Notification;
+          import android.app.NotificationChannel;
+          import android.app.NotificationManager;
+          import android.app.Service;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.content.pm.ServiceInfo;
+          import android.graphics.Bitmap;
+          import android.graphics.PixelFormat;
+          import android.hardware.display.DisplayManager;
+          import android.hardware.display.VirtualDisplay;
+          import android.media.Image;
+          import android.media.ImageReader;
+          import android.media.projection.MediaProjection;
+          import android.media.projection.MediaProjectionManager;
+          import android.os.Build;
+          import android.os.IBinder;
+          import android.os.SystemClock;
+          import android.util.Base64;
+          import android.util.DisplayMetrics;
+          import android.view.WindowManager;
+          import java.io.ByteArrayOutputStream;
+          import java.nio.ByteBuffer;
+
+          public class ScreenCaptureService extends Service {
+              public static ScreenCaptureService instance = null;
+              private MediaProjection mediaProjection;
+              private int resultCode = 0;
+              private Intent resultData = null;
+
+              @Override
+              public void onCreate() {
+                  super.onCreate();
+                  instance = this;
+                  startForegroundNotification();
+              }
+
+              @Override
+              public int onStartCommand(Intent intent, int flags, int startId) {
+                  startForegroundNotification();
+                  if (intent != null && intent.hasExtra("resultCode") && intent.hasExtra("data")) {
+                      this.resultCode = intent.getIntExtra("resultCode", 0);
+                      this.resultData = intent.getParcelableExtra("data");
+                      initProjection();
+                  }
+                  return START_STICKY;
+              }
+
+              private void initProjection() {
+                  try {
+                      if (mediaProjection == null && resultData != null) {
+                          MediaProjectionManager mpm = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+                          if (mpm != null) {
+                              mediaProjection = mpm.getMediaProjection(resultCode, resultData);
+                          }
+                      }
+                  } catch (Exception ignored) {}
+              }
+
+              public String captureScreenBase64() {
+                  if (mediaProjection == null) {
+                      initProjection();
+                      if (mediaProjection == null) return null;
+                  }
+
+                  VirtualDisplay virtualDisplay = null;
+                  ImageReader imageReader = null;
+                  Image image = null;
+                  Bitmap bitmap = null;
+
+                  try {
+                      WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+                      DisplayMetrics dm = new DisplayMetrics();
+                      if (wm != null) wm.getDefaultDisplay().getRealMetrics(dm);
+                      else dm = getResources().getDisplayMetrics();
+
+                      int width = dm.widthPixels;
+                      int height = dm.heightPixels;
+
+                      imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2);
+                      virtualDisplay = mediaProjection.createVirtualDisplay(
+                          "VoiceShot", width, height, dm.densityDpi,
+                          DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                          imageReader.getSurface(), null, null
+                      );
+
+                      for (int i = 0; i < 6; i++) {
+                          SystemClock.sleep(50);
+                          image = imageReader.acquireLatestImage();
+                          if (image != null) break;
+                      }
+
+                      if (image == null) return null;
+
+                      Image.Plane[] planes = image.getPlanes();
+                      ByteBuffer buffer = planes[0].getBuffer();
+                      int pixelStride = planes[0].getPixelStride();
+                      int rowStride = planes[0].getRowStride();
+                      int rowPadding = rowStride - pixelStride * width;
+
+                      bitmap = Bitmap.createBitmap(width + rowPadding / pixelStride, height, Bitmap.Config.ARGB_8888);
+                      bitmap.copyPixelsFromBuffer(buffer);
+
+                      Bitmap cropped = Bitmap.createBitmap(bitmap, 0, 0, width, height);
+                      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                      cropped.compress(Bitmap.CompressFormat.JPEG, 75, baos);
+                      return Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP);
+
+                  } catch (Exception e) {
+                      return null;
+                  } finally {
+                      if (bitmap != null) bitmap.recycle();
+                      if (image != null) image.close();
+                      if (virtualDisplay != null) virtualDisplay.release();
+                      if (imageReader != null) imageReader.close();
+                  }
+              }
+
+              private void startForegroundNotification() {
+                  String channelId = "voice_screen_capture";
+                  NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm != null) {
+                      NotificationChannel chan = new NotificationChannel(channelId, "Voice Screen Capture", NotificationManager.IMPORTANCE_LOW);
+                      nm.createNotificationChannel(chan);
+                  }
+
+                  Notification.Builder b = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) 
+                      ? new Notification.Builder(this, channelId) 
+                      : new Notification.Builder(this);
+
+                  Notification notif = b.setContentTitle("Voice Vision")
+                      .setContentText("Screen engine ready")
+                      .setSmallIcon(android.R.drawable.ic_menu_camera)
+                      .build();
+
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                      startForeground(1001, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
+                  } else {
+                      startForeground(1001, notif);
+                  }
+              }
+
+              @Override
+              public void onDestroy() {
+                  instance = null;
+                  if (mediaProjection != null) mediaProjection.stop();
+                  super.onDestroy();
+              }
+
+              @Override
+              public IBinder onBind(Intent intent) { return null; }
+          }
+          EOF
+
+          # MainActivity.java: Lightweight UI Host & Native Engine Bridge
           cat << 'EOF' > app/src/main/java/com/gemini/live/MainActivity.java
           package com.gemini.live;
 
@@ -840,7 +1239,7 @@ jobs:
               private static final int REQUEST_MEDIA_PROJECTION = 202;
               private WebView webView;
               private MediaProjectionManager projectionManager;
-              private Toast currentToast = null;
+              private GeminiLiveClient liveClient;
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
@@ -875,6 +1274,28 @@ jobs:
 
                   projectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
 
+                  // Setup Native Gemini Live Client
+                  liveClient = new GeminiLiveClient(new GeminiLiveClient.UIUpdateListener() {
+                      @Override
+                      public void onStateChanged(String state, String title, String sub) {
+                          runOnUiThread(() -> {
+                              if (webView != null) {
+                                  webView.evaluateJavascript("setVisualState('" + state + "', '" + title + "', '" + sub + "');", null);
+                              }
+                          });
+                      }
+
+                      @Override
+                      public void onTaskStep(int step, String description) {
+                          runOnUiThread(() -> {
+                              if (webView != null) {
+                                  webView.evaluateJavascript("showTaskStep(" + step + ", '" + description + "');", null);
+                              }
+                          });
+                      }
+                  });
+
+                  // Setup Lean WebView (UI Only - ~35MB RAM)
                   webView = new WebView(this);
                   webView.setBackgroundColor(Color.TRANSPARENT);
                   webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
@@ -883,7 +1304,7 @@ jobs:
                   WebSettings s = webView.getSettings();
                   s.setJavaScriptEnabled(true);
                   s.setDomStorageEnabled(true);
-                  s.setDatabaseEnabled(true);
+                  s.setCacheMode(WebSettings.LOAD_NO_CACHE);
                   s.setMediaPlaybackRequiresUserGesture(false);
                   s.setAllowFileAccess(true);
                   s.setAllowContentAccess(true);
@@ -896,14 +1317,18 @@ jobs:
                       public void closeApp() { runOnUiThread(() -> finish()); }
 
                       @JavascriptInterface
-                      public void showTaskProgress(int step, String action) {
-                          runOnUiThread(() -> {
-                              try {
-                                  if (currentToast != null) currentToast.cancel();
-                                  currentToast = Toast.makeText(MainActivity.this, "⚡ [" + step + "] " + action, Toast.LENGTH_SHORT);
-                                  currentToast.show();
-                              } catch (Exception ignored) {}
-                          });
+                      public void startLiveSession(String key, String model, String voice, String prompt, String toolsJson) {
+                          liveClient.connect(key, model, voice, prompt, toolsJson);
+                      }
+
+                      @JavascriptInterface
+                      public void stopLiveSession() {
+                          liveClient.disconnect();
+                      }
+
+                      @JavascriptInterface
+                      public void sendCameraFrame(String base64Jpeg) {
+                          liveClient.sendVideoFrame(base64Jpeg);
                       }
 
                       @JavascriptInterface
@@ -916,22 +1341,6 @@ jobs:
                       }
 
                       @JavascriptInterface
-                      public void requestScreenCapturePermission() {
-                          runOnUiThread(() -> requestScreenCapture());
-                      }
-
-                      @JavascriptInterface
-                      public String captureScreen() {
-                          if (ScreenCaptureService.instance == null) {
-                              runOnUiThread(() -> requestScreenCapture());
-                              return "Screen capture initializing. Please retry in 1 second.";
-                          }
-                          String b64 = ScreenCaptureService.instance.captureScreenBase64();
-                          return b64 != null ? b64 : "Failed to capture frame.";
-                      }
-
-                      // Saves rules to physical file: /sdcard/Documents/Voice/rules.json
-                      @JavascriptInterface
                       public boolean saveRulesToFile(String jsonString) {
                           try {
                               File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "Voice");
@@ -943,12 +1352,9 @@ jobs:
                               writer.close();
                               runOnUiThread(() -> Toast.makeText(MainActivity.this, "Rules synced to Documents/Voice/rules.json", Toast.LENGTH_SHORT).show());
                               return true;
-                          } catch (Exception e) {
-                              return false;
-                          }
+                          } catch (Exception e) { return false; }
                       }
 
-                      // 1-Tap launch into Samsung My Files or universal text editor
                       @JavascriptInterface
                       public void openRulesInFileManager() {
                           runOnUiThread(() -> {
@@ -969,226 +1375,6 @@ jobs:
                               }
                           });
                       }
-
-                      @JavascriptInterface
-                      public String createNote(String text) {
-                          try {
-                              Intent intent = new Intent(Intent.ACTION_SEND);
-                              intent.setType("text/plain");
-                              intent.putExtra(Intent.EXTRA_TEXT, text);
-                              intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                              startActivity(Intent.createChooser(intent, "Create Note"));
-                              return "Opened note composer with text.";
-                          } catch (Exception e) {
-                              return "Failed to create note: " + e.getMessage();
-                          }
-                      }
-
-                      @JavascriptInterface
-                      public String searchContacts(String query) {
-                          try {
-                              ContentResolver cr = getContentResolver();
-                              Uri uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI;
-                              String selection = ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " LIKE ?";
-                              String[] selectionArgs = new String[]{"%" + query.trim() + "%"};
-                              Cursor cursor = cr.query(uri, new String[]{
-                                  ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-                                  ContactsContract.CommonDataKinds.Phone.NUMBER
-                              }, selection, selectionArgs, null);
-
-                              if (cursor != null) {
-                                  JSONArray results = new JSONArray();
-                                  while (cursor.moveToNext()) {
-                                      JSONObject obj = new JSONObject();
-                                      obj.put("name", cursor.getString(0));
-                                      obj.put("number", cursor.getString(1));
-                                      results.put(obj);
-                                      if (results.length() >= 5) break;
-                                  }
-                                  cursor.close();
-                                  if (results.length() > 0) return results.toString();
-                              }
-                          } catch (Exception e) { return "Error searching contacts: " + e.getMessage(); }
-                          return "No contacts found matching: " + query;
-                      }
-
-                      @JavascriptInterface
-                      public String searchYouTube(String query) {
-                          try {
-                              Intent intent = new Intent(Intent.ACTION_SEARCH);
-                              intent.setPackage("com.google.android.youtube");
-                              intent.putExtra("query", query);
-                              intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                              startActivity(intent);
-                              return "Opened YouTube searching for " + query;
-                          } catch (Exception e) {
-                              Intent webIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/results?search_query=" + Uri.encode(query)));
-                              webIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                              startActivity(webIntent);
-                              return "Opened YouTube in browser for " + query;
-                          }
-                      }
-
-                      @JavascriptInterface
-                      public String searchWeb(String query) {
-                          try {
-                              Intent intent = new Intent(Intent.ACTION_WEB_SEARCH);
-                              intent.putExtra(SearchManager.QUERY, query);
-                              intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                              startActivity(intent);
-                              return "Searching web for " + query;
-                          } catch (Exception e) {
-                              Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=" + Uri.encode(query)));
-                              browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                              startActivity(browserIntent);
-                              return "Opened Google Search for " + query;
-                          }
-                      }
-
-                      @JavascriptInterface
-                      public String openWhatsAppChat(String phoneNumber, String message) {
-                          try {
-                              String cleanPhone = phoneNumber.replaceAll("[^0-9+]", "");
-                              if (cleanPhone.startsWith("+")) cleanPhone = cleanPhone.substring(1);
-                              String url = "https://api.whatsapp.com/send?phone=" + cleanPhone + "&text=" + Uri.encode(message);
-                              Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                              intent.setPackage("com.whatsapp");
-                              intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                              startActivity(intent);
-                              return "Opened WhatsApp chat for " + cleanPhone;
-                          } catch (Exception e) {
-                              return "Failed to open WhatsApp: " + e.getMessage();
-                          }
-                      }
-
-                      @JavascriptInterface
-                      public String tapCoordinates(int x, int y) {
-                          if (VolumeTriggerService.instance == null) return "Accessibility Service required.";
-                          boolean ok = VolumeTriggerService.instance.tapCoordinates(x, y);
-                          return ok ? "Tapped at (" + x + ", " + y + ")" : "Failed to tap coordinates.";
-                      }
-
-                      @JavascriptInterface
-                      public String longPress(int x, int y) {
-                          if (VolumeTriggerService.instance == null) return "Accessibility Service required.";
-                          boolean ok = VolumeTriggerService.instance.longPress(x, y);
-                          return ok ? "Long-pressed at (" + x + ", " + y + ")" : "Failed to long-press.";
-                      }
-
-                      @JavascriptInterface
-                      public String swipe(int x1, int y1, int x2, int y2, int duration) {
-                          if (VolumeTriggerService.instance == null) return "Accessibility Service required.";
-                          boolean ok = VolumeTriggerService.instance.swipe(x1, y1, x2, y2, duration);
-                          return ok ? "Swiped successfully." : "Swipe failed.";
-                      }
-
-                      @JavascriptInterface
-                      public String scroll(String direction) {
-                          if (VolumeTriggerService.instance == null) return "Accessibility Service required.";
-                          boolean ok = VolumeTriggerService.instance.scroll(direction);
-                          return ok ? "Scrolled " + direction : "Scroll failed.";
-                      }
-
-                      @JavascriptInterface
-                      public String toggleFlashlight(boolean state) {
-                          try {
-                              CameraManager cm = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-                              if (cm != null) {
-                                  String id = cm.getCameraIdList()[0];
-                                  cm.setTorchMode(id, state);
-                                  return "Flashlight set to " + (state ? "ON" : "OFF");
-                              }
-                          } catch (Exception e) { return "Flashlight error: " + e.getMessage(); }
-                          return "CameraManager unavailable.";
-                      }
-
-                      @JavascriptInterface
-                      public String setVolume(int percent) {
-                          try {
-                              AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-                              if (am != null) {
-                                  int max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
-                                  int target = Math.round(max * (Math.max(0, Math.min(100, percent)) / 100.0f));
-                                  am.setStreamVolume(AudioManager.STREAM_MUSIC, target, AudioManager.FLAG_SHOW_UI);
-                                  return "Volume set to " + percent + "%";
-                              }
-                          } catch (Exception e) { return "Volume error: " + e.getMessage(); }
-                          return "AudioManager unavailable.";
-                      }
-
-                      @JavascriptInterface
-                      public String navigateSystem(String action) {
-                          if (VolumeTriggerService.instance == null) return "Accessibility Service not enabled.";
-                          int globalAction;
-                          switch (action.toLowerCase()) {
-                              case "back": globalAction = AccessibilityService.GLOBAL_ACTION_BACK; break;
-                              case "recents": globalAction = AccessibilityService.GLOBAL_ACTION_RECENTS; break;
-                              case "notifications": globalAction = AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS; break;
-                              case "quick_settings": globalAction = AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS; break;
-                              case "lock": globalAction = AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN; break;
-                              case "home":
-                              default: globalAction = AccessibilityService.GLOBAL_ACTION_HOME; break;
-                          }
-                          boolean ok = VolumeTriggerService.instance.performGlobalAction(globalAction);
-                          return ok ? "Triggered " + action : "Action failed.";
-                      }
-
-                      @JavascriptInterface
-                      public String openApp(String appName) {
-                          PackageManager pm = getPackageManager();
-                          List<ApplicationInfo> apps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
-                          for (ApplicationInfo app : apps) {
-                              String label = pm.getApplicationLabel(app).toString().toLowerCase();
-                              if (label.contains(appName.toLowerCase().trim())) {
-                                  Intent launchIntent = pm.getLaunchIntentForPackage(app.packageName);
-                                  if (launchIntent != null) {
-                                      launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                                      startActivity(launchIntent);
-                                      return "Opened " + label;
-                                  }
-                              }
-                          }
-                          return "Could not find an app named " + appName;
-                      }
-
-                      @JavascriptInterface
-                      public String makePhoneCall(String phoneNumber) {
-                          try {
-                              Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + phoneNumber.trim()));
-                              intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                              startActivity(intent);
-                              return "Calling " + phoneNumber;
-                          } catch (Exception e) { return "Call failed: " + e.getMessage(); }
-                      }
-
-                      @JavascriptInterface
-                      public String sendSms(String phoneNumber, String message) {
-                          try {
-                              SmsManager sm = SmsManager.getDefault();
-                              sm.sendTextMessage(phoneNumber.trim(), null, message, null, null);
-                              return "SMS sent to " + phoneNumber;
-                          } catch (Exception e) { return "SMS failed: " + e.getMessage(); }
-                      }
-
-                      @JavascriptInterface
-                      public String readScreenText() {
-                          if (VolumeTriggerService.instance == null) return "Accessibility Service required to read screen.";
-                          return VolumeTriggerService.instance.readScreenText();
-                      }
-
-                      @JavascriptInterface
-                      public String tapElement(String label) {
-                          if (VolumeTriggerService.instance == null) return "Accessibility Service required to tap elements.";
-                          boolean ok = VolumeTriggerService.instance.tapElement(label);
-                          return ok ? "Tapped " + label : "Could not find element: " + label;
-                      }
-
-                      @JavascriptInterface
-                      public String typeText(String text) {
-                          if (VolumeTriggerService.instance == null) return "Accessibility Service required to type text.";
-                          boolean ok = VolumeTriggerService.instance.typeText(text);
-                          return ok ? "Typed: " + text : "Could not find an active editable field to type in.";
-                      }
                   }, "AndroidBridge");
 
                   webView.setWebChromeClient(new WebChromeClient() {
@@ -1199,6 +1385,218 @@ jobs:
                   });
 
                   webView.loadUrl("file:///android_asset/index.html");
+              }
+
+              // Native Bridge Methods Called Directly by GeminiLiveClient
+              public String bridgeTapElementId(int id) {
+                  if (VolumeTriggerService.instance == null) return "Accessibility Service required.";
+                  boolean ok = VolumeTriggerService.instance.tapElementId(id);
+                  return ok ? "Tapped element #" + id : "Element #" + id + " not found.";
+              }
+
+              public String bridgeTapCoordinates(int x, int y) {
+                  if (VolumeTriggerService.instance == null) return "Accessibility Service required.";
+                  boolean ok = VolumeTriggerService.instance.tapCoordinates(x, y);
+                  return ok ? "Tapped at (" + x + ", " + y + ")" : "Failed to tap.";
+              }
+
+              public String bridgeLongPress(int x, int y) {
+                  if (VolumeTriggerService.instance == null) return "Accessibility Service required.";
+                  boolean ok = VolumeTriggerService.instance.longPress(x, y);
+                  return ok ? "Long-pressed at (" + x + ", " + y + ")" : "Failed to long-press.";
+              }
+
+              public String bridgeTypeText(String text) {
+                  if (VolumeTriggerService.instance == null) return "Accessibility Service required.";
+                  boolean ok = VolumeTriggerService.instance.typeText(text);
+                  return ok ? "Inserted text." : "Could not find active editable field.";
+              }
+
+              public String bridgeCreateNote(String text) {
+                  try {
+                      Intent intent = new Intent(Intent.ACTION_SEND);
+                      intent.setType("text/plain");
+                      intent.putExtra(Intent.EXTRA_TEXT, text);
+                      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      startActivity(Intent.createChooser(intent, "Create Note"));
+                      return "Opened note composer.";
+                  } catch (Exception e) { return "Failed to create note: " + e.getMessage(); }
+              }
+
+              public String bridgeReadScreenText() {
+                  if (VolumeTriggerService.instance == null) return "Accessibility Service required.";
+                  return VolumeTriggerService.instance.readScreenText();
+              }
+
+              public String bridgeCaptureScreen() {
+                  if (ScreenCaptureService.instance == null) {
+                      runOnUiThread(() -> requestScreenCapture());
+                      return "Screen capture initializing. Retry in 1s.";
+                  }
+                  String b64 = ScreenCaptureService.instance.captureScreenBase64();
+                  if (b64 != null && liveClient != null) {
+                      liveClient.sendVideoFrame(b64);
+                      return "Screenshot injected to visual feed.";
+                  }
+                  return "Failed to capture screen frame.";
+              }
+
+              public String bridgeScroll(String direction) {
+                  if (VolumeTriggerService.instance == null) return "Accessibility Service required.";
+                  boolean ok = VolumeTriggerService.instance.scroll(direction);
+                  return ok ? "Scrolled " + direction : "Scroll failed.";
+              }
+
+              public String bridgeSwipe(int x1, int y1, int x2, int y2, int duration) {
+                  if (VolumeTriggerService.instance == null) return "Accessibility Service required.";
+                  boolean ok = VolumeTriggerService.instance.swipe(x1, y1, x2, y2, duration);
+                  return ok ? "Swiped." : "Swipe failed.";
+              }
+
+              public String bridgeOpenApp(String appName) {
+                  PackageManager pm = getPackageManager();
+                  List<ApplicationInfo> apps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+                  for (ApplicationInfo app : apps) {
+                      String label = pm.getApplicationLabel(app).toString().toLowerCase();
+                      if (label.contains(appName.toLowerCase().trim())) {
+                          Intent launchIntent = pm.getLaunchIntentForPackage(app.packageName);
+                          if (launchIntent != null) {
+                              launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                              startActivity(launchIntent);
+                              return "Opened " + label;
+                          }
+                      }
+                  }
+                  return "Could not find app " + appName;
+              }
+
+              public String bridgeSearchContacts(String query) {
+                  try {
+                      ContentResolver cr = getContentResolver();
+                      Uri uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI;
+                      String selection = ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " LIKE ?";
+                      String[] selectionArgs = new String[]{"%" + query.trim() + "%"};
+                      Cursor cursor = cr.query(uri, new String[]{
+                          ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                          ContactsContract.CommonDataKinds.Phone.NUMBER
+                      }, selection, selectionArgs, null);
+
+                      if (cursor != null) {
+                          JSONArray results = new JSONArray();
+                          while (cursor.moveToNext()) {
+                              JSONObject obj = new JSONObject();
+                              obj.put("name", cursor.getString(0));
+                              obj.put("number", cursor.getString(1));
+                              results.put(obj);
+                              if (results.length() >= 5) break;
+                          }
+                          cursor.close();
+                          if (results.length() > 0) return results.toString();
+                      }
+                  } catch (Exception e) { return "Contact error: " + e.getMessage(); }
+                  return "No contacts found matching: " + query;
+              }
+
+              public String bridgeSearchYouTube(String query) {
+                  try {
+                      Intent intent = new Intent(Intent.ACTION_SEARCH);
+                      intent.setPackage("com.google.android.youtube");
+                      intent.putExtra("query", query);
+                      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      startActivity(intent);
+                      return "Opened YouTube searching for " + query;
+                  } catch (Exception e) {
+                      Intent webIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/results?search_query=" + Uri.encode(query)));
+                      webIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      startActivity(webIntent);
+                      return "Opened YouTube in browser.";
+                  }
+              }
+
+              public String bridgeSearchWeb(String query) {
+                  try {
+                      Intent intent = new Intent(Intent.ACTION_WEB_SEARCH);
+                      intent.putExtra(SearchManager.QUERY, query);
+                      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      startActivity(intent);
+                      return "Searching web for " + query;
+                  } catch (Exception e) {
+                      Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=" + Uri.encode(query)));
+                      browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      startActivity(browserIntent);
+                      return "Opened Google Search.";
+                  }
+              }
+
+              public String bridgeOpenWhatsApp(String phoneNumber, String message) {
+                  try {
+                      String cleanPhone = phoneNumber.replaceAll("[^0-9+]", "");
+                      if (cleanPhone.startsWith("+")) cleanPhone = cleanPhone.substring(1);
+                      String url = "https://api.whatsapp.com/send?phone=" + cleanPhone + "&text=" + Uri.encode(message);
+                      Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                      intent.setPackage("com.whatsapp");
+                      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      startActivity(intent);
+                      return "Opened WhatsApp for " + cleanPhone;
+                  } catch (Exception e) { return "WhatsApp error: " + e.getMessage(); }
+              }
+
+              public String bridgeMakeCall(String phoneNumber) {
+                  try {
+                      Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + phoneNumber.trim()));
+                      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      startActivity(intent);
+                      return "Calling " + phoneNumber;
+                  } catch (Exception e) { return "Call failed: " + e.getMessage(); }
+              }
+
+              public String bridgeSendSms(String phoneNumber, String message) {
+                  try {
+                      SmsManager sm = SmsManager.getDefault();
+                      sm.sendTextMessage(phoneNumber.trim(), null, message, null, null);
+                      return "SMS sent to " + phoneNumber;
+                  } catch (Exception e) { return "SMS failed: " + e.getMessage(); }
+              }
+
+              public String bridgeToggleFlashlight(boolean state) {
+                  try {
+                      CameraManager cm = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+                      if (cm != null) {
+                          String id = cm.getCameraIdList()[0];
+                          cm.setTorchMode(id, state);
+                          return "Flashlight set to " + (state ? "ON" : "OFF");
+                      }
+                  } catch (Exception e) { return "Flashlight error: " + e.getMessage(); }
+                  return "CameraManager unavailable.";
+              }
+
+              public String bridgeSetVolume(int percent) {
+                  try {
+                      AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                      if (am != null) {
+                          int max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+                          int target = Math.round(max * (Math.max(0, Math.min(100, percent)) / 100.0f));
+                          am.setStreamVolume(AudioManager.STREAM_MUSIC, target, AudioManager.FLAG_SHOW_UI);
+                          return "Volume set to " + percent + "%";
+                      }
+                  } catch (Exception e) { return "Volume error: " + e.getMessage(); }
+                  return "AudioManager unavailable.";
+              }
+
+              public String bridgeNavigateSystem(String action) {
+                  if (VolumeTriggerService.instance == null) return "Accessibility Service required.";
+                  int globalAction;
+                  switch (action.toLowerCase()) {
+                      case "back": globalAction = AccessibilityService.GLOBAL_ACTION_BACK; break;
+                      case "recents": globalAction = AccessibilityService.GLOBAL_ACTION_RECENTS; break;
+                      case "notifications": globalAction = AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS; break;
+                      case "quick_settings": globalAction = AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS; break;
+                      case "lock": globalAction = AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN; break;
+                      case "home":
+                      default: globalAction = AccessibilityService.GLOBAL_ACTION_HOME; break;
+                  }
+                  boolean ok = VolumeTriggerService.instance.performGlobalAction(globalAction);
+                  return ok ? "Triggered " + action : "Action failed.";
               }
 
               public void requestScreenCapture() {
@@ -1238,6 +1636,7 @@ jobs:
               @Override
               protected void onDestroy() {
                   instance = null;
+                  if (liveClient != null) liveClient.disconnect();
                   super.onDestroy();
               }
 
@@ -1284,8 +1683,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete v2.0 --yes || true
-          git tag -d v2.0 || true
-          gh release create v2.0 app/build/outputs/apk/debug/app-debug.apk \
-            --title "Voice v2.0 (Jarvis Self-Learning Engine)" \
-            --notes "Voice v2.0: Calibrated 1:1 Precision Tapping, 35px Magnetic Snap, Long-Press (700ms), 1-Shot Notes, Autonomous Learning Memory, and My Files Integration." || true
+          gh release delete v3.0 --yes || true
+          git tag -d v3.0 || true
+          gh release create v3.0 app/build/outputs/apk/debug/app-debug.apk \
+            --title "Voice v3.0 (Hybrid Native Architecture)" \
+            --notes "Voice v3.0: Native OkHttp WebSocket, AudioRecord with Hardware AEC, AudioTrack playback, 65MB RAM footprint, 0ms direct tool calls, and Element ID Grounding." || true

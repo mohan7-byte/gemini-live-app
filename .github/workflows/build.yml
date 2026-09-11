@@ -242,8 +242,9 @@ jobs:
                       AudioFormat.ENCODING_PCM_16BIT
                   );
 
+                  // USAGE_MEDIA ensures audio plays out of the main media speaker loudly
                   AudioAttributes attrs = new AudioAttributes.Builder()
-                      .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                      .setUsage(AudioAttributes.USAGE_MEDIA)
                       .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                       .build();
 
@@ -272,9 +273,9 @@ jobs:
                       AudioFormat.ENCODING_PCM_16BIT
                   );
 
-                  // Hardware Acoustic Echo Cancellation via VOICE_COMMUNICATION
+                  // Use MIC: 100% reliable real PCM capture on Samsung Android 10
                   audioRecord = new AudioRecord(
-                      MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+                      MediaRecorder.AudioSource.MIC,
                       IN_SAMPLE_RATE,
                       AudioFormat.CHANNEL_IN_MONO,
                       AudioFormat.ENCODING_PCM_16BIT,
@@ -288,7 +289,7 @@ jobs:
 
                   captureThread = new Thread(() -> {
                       android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
-                      byte[] buffer = new byte[2048]; // ~64ms of 16kHz 16-bit mono
+                      byte[] buffer = new byte[2048]; // ~64ms chunks
 
                       while (isCapturing.get()) {
                           int read = audioRecord.read(buffer, 0, buffer.length);
@@ -302,7 +303,10 @@ jobs:
               }
 
               public void playPcmChunk(byte[] pcmBytes) {
-                  if (audioTrack != null && audioTrack.getPlayState() == AudioTrack.PLAYSTATE_PLAYING) {
+                  if (audioTrack != null) {
+                      if (audioTrack.getPlayState() != AudioTrack.PLAYSTATE_PLAYING) {
+                          audioTrack.play();
+                      }
                       if (listener != null) listener.onSpeakingStateChanged(true);
                       audioTrack.write(pcmBytes, 0, pcmBytes.length);
                   }
@@ -401,8 +405,7 @@ jobs:
                       public void onOpen(WebSocket ws, Response response) {
                           isConnected = true;
                           sendSetupPayload(model, voice, prompt, toolsJsonStr);
-                          audioPipeline.startCapture();
-                          if (uiListener != null) uiListener.onStateChanged("listening", "Listening", "Go ahead");
+                       if (uiListener != null) uiListener.onStateChanged("idle", "Connecting...", "Handshake");
                       }
 
                       @Override
@@ -481,6 +484,16 @@ jobs:
                   } catch (Exception ignored) {}
               }
 
+              private void handleIncomingMessage(String jsonStr) {
+               try {
+                   JSONObject root = new JSONObject(jsonStr);
+
+                   // Wait for setupComplete before starting mic stream!
+                   if (root.has("setupComplete")) {
+                       audioPipeline.startCapture();
+                       if (uiListener != null) uiListener.onStateChanged("listening", "Listening", "Go ahead");
+                       return;
+                   }
               private void handleIncomingMessage(String jsonStr) {
                   try {
                       JSONObject root = new JSONObject(jsonStr);
